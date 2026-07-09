@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../store/app_store.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
 import '../../widgets/primary_button.dart';
@@ -52,6 +53,20 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
       setState(() => _stage = _Stage.joining);
       final online = await s.server.waitForDeviceOnline(s.room!.roomId);
 
+      if (online) {
+        // Persist the room (with its share link + owner token) and the WiFi
+        // password so re-provisioning another device is one tap.
+        await AppStore.instance.saveWifi(s.ssid, s.password ?? '');
+        await AppStore.instance.addRoom(SavedRoom(
+          roomId: s.room!.roomId,
+          ownerToken: s.room!.ownerToken,
+          name: s.deviceName,
+          ssid: s.ssid,
+          serverHost: s.server.host,
+          serverPort: s.server.port,
+          createdAt: DateTime.now(),
+        ));
+      }
       if (!mounted) return;
       if (online) {
         setState(() => _stage = _Stage.done);

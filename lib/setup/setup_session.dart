@@ -16,6 +16,15 @@ class SetupSession {
   String get ssid => network?.ssid ?? manualSsid ?? '';
   bool get secure => network?.secure ?? manualSecure;
 
+  /// The room link to share once a room exists — role-less, so the recipient
+  /// can join as a parent or as a second baby device.
+  String? get roomLink {
+    if (room == null) return null;
+    final scheme = server.port == 443 ? 'https' : 'http';
+    final authority = server.port == 443 ? server.host : '${server.host}:${server.port}';
+    return '$scheme://$authority/${room!.roomId}';
+  }
+
   /// Friendly device name derived from the MAC, shown on the parent screen.
   String get deviceName {
     final mac = info?.mac ?? '';

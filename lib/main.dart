@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'setup/screens/welcome_screen.dart';
+import 'home/home_screen.dart';
 import 'theme.dart';
 
 void main() {
@@ -18,7 +18,7 @@ class BabyLinkApp extends StatelessWidget {
       theme: BabyLinkTheme.light(),
       darkTheme: BabyLinkTheme.dark(),
       themeMode: ThemeMode.system,
-      home: const WelcomeScreen(),
+      home: const HomeScreen(),
     );
   }
 }

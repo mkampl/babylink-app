@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../store/app_store.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
 import '../../widgets/primary_button.dart';
@@ -19,6 +20,21 @@ class PasswordScreen extends StatefulWidget {
 class _PasswordScreenState extends State<PasswordScreen> {
   final _controller = TextEditingController();
   bool _hidden = true;
+  bool _prefilled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reuse a previously-saved password for this network, if we have one.
+    AppStore.instance.wifiPassword(widget.session.ssid).then((pw) {
+      if (pw != null && pw.isNotEmpty && mounted && _controller.text.isEmpty) {
+        setState(() {
+          _controller.text = pw;
+          _prefilled = true;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -73,9 +89,11 @@ class _PasswordScreenState extends State<PasswordScreen> {
             ),
           ),
           Gap.hMd,
-          const TipBanner(
-            'This is your home WiFi password — the same one on your other devices.',
-            kind: TipKind.info,
+          TipBanner(
+            _prefilled
+                ? 'Using your saved password for this network. Tap the field to change it.'
+                : 'This is your home WiFi password — the same one on your other devices.',
+            kind: _prefilled ? TipKind.success : TipKind.info,
           ),
         ],
       ),
