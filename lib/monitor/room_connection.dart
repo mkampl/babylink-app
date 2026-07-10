@@ -204,15 +204,18 @@ class RoomConnection extends ChangeNotifier {
   }
 
   void _applyMute(BabyStream baby) {
+    if (baby.kind == BabyKind.webrtc) {
+      // WebRTC has no reliable receive-side level (getStats audioLevel is absent
+      // and totalAudioEnergy is flaky), so VOX auto-muting could silence a live
+      // baby. Fail open: keep audible unless the user manually mutes.
+      baby.effectiveMuted = baby.manualMute;
+      _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
+      return;
+    }
+    // PCM (ESP): real per-sample levels → full VOX auto-listen.
     final quietFor = DateTime.now().difference(baby.lastEnergy).inMilliseconds;
     baby.effectiveMuted = baby.manualMute || (quietFor > _voxHoldMs);
-    if (baby.kind == BabyKind.webrtc) {
-      // Set playback volume (0 = muted) but keep the track flowing so auto-listen
-      // can still read the incoming level from getStats.
-      _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
-    } else {
-      _mixer.setMuted(baby.id, baby.effectiveMuted);
-    }
+    _mixer.setMuted(baby.id, baby.effectiveMuted);
   }
 
   Uint8List? _extractBytes(dynamic audio) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
@@ -29,7 +30,23 @@ class WebRtcReceiver {
   /// esp32 devices go over PCM, everyone else over WebRTC.
   static bool isWebrtcBaby(String socketId) => !socketId.startsWith('esp32_');
 
+  static bool _audioConfigured = false;
+
   Future<void> init() async {
+    // Receive-only: keep WebRTC on the MEDIA path, not VoIP/communication.
+    // bypassVoiceProcessing stops libwebrtc opening the mic for echo-cancel —
+    // which otherwise makes our mediaPlayback foreground service (no mic type)
+    // a policy violation on Android 14+ and the OS kills it. Media mode also
+    // plays loud on the speaker instead of the quiet earpiece.
+    if (!_audioConfigured) {
+      _audioConfigured = true;
+      try {
+        await WebRTC.initialize(options: {'bypassVoiceProcessing': true});
+      } catch (_) {}
+      try {
+        await Helper.setAndroidAudioConfiguration(AndroidAudioConfiguration.media);
+      } catch (_) {}
+    }
     try {
       final r = await http.get(Uri.parse('$baseUrl/api/config/webrtc'));
       if (r.statusCode == 200) {
@@ -113,10 +130,6 @@ class WebRtcReceiver {
       if (e.track.kind == 'audio') {
         peer.track = e.track;
         peer.retries = 0; // success — clear the breaker
-        // Route to the loudspeaker — WebRTC defaults to the quiet earpiece.
-        try {
-          Helper.setSpeakerphoneOn(true);
-        } catch (_) {}
         onLive?.call(id, name);
       }
     };
@@ -154,17 +167,33 @@ class WebRtcReceiver {
   /// Poll each peer's inbound audio level (0..1) for meter + auto-listen.
   Future<void> pollLevels() async {
     for (final e in _peers.entries) {
-      final t = e.value.track;
-      if (t == null) continue;
+      final peer = e.value;
+      if (peer.track == null) continue;
       try {
-        final reports = await e.value.pc.getStats(t);
+        // No track arg → spec-compliant stats where inbound-rtp carries
+        // audioLevel (0..1). (getStats(track) returns legacy audioOutputLevel.)
+        final reports = await peer.pc.getStats();
         double? level;
         for (final r in reports) {
-          final v = r.values['audioLevel'];
-          if (v is num) {
-            level = v.toDouble();
-            if (r.type == 'inbound-rtp') break; // prefer the RTP-level reading
+          if (r.type != 'inbound-rtp') continue;
+          final v = r.values;
+          // audioLevel (0..1) is often absent on the receive side; the reliable
+          // path is RMS = sqrt(Δ totalAudioEnergy / Δ totalSamplesDuration).
+          final al = v['audioLevel'];
+          if (al is num) {
+            level = al.toDouble();
+          } else {
+            final energy = v['totalAudioEnergy'];
+            final duration = v['totalSamplesDuration'];
+            if (energy is num && duration is num) {
+              final de = energy.toDouble() - peer.prevEnergy;
+              final dd = duration.toDouble() - peer.prevDuration;
+              peer.prevEnergy = energy.toDouble();
+              peer.prevDuration = duration.toDouble();
+              if (dd > 0) level = math.sqrt((de / dd).clamp(0.0, 1.0));
+            }
           }
+          break;
         }
         if (level != null) onLevel?.call(e.key, level);
       } catch (_) {}
@@ -195,5 +224,7 @@ class _Peer {
   final String name;
   MediaStreamTrack? track;
   int retries = 0;
+  double prevEnergy = 0; // for RMS level from totalAudioEnergy deltas
+  double prevDuration = 0;
   _Peer(this.pc, this.name);
 }

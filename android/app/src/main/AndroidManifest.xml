@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Network — talk to the BabyLink server API (create room, poll status). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- WebRTC's NetworkMonitor queries connectivity; without this it throws a
+         SecurityException and libwebrtc aborts the native network thread. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <!-- Keep audio monitoring alive in the background (foreground service). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
