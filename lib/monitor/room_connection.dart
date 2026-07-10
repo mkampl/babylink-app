@@ -20,6 +20,7 @@ class RoomConnection extends ChangeNotifier {
   RoomConnection(this.room);
 
   final PcmMixer _mixer = PcmMixer();
+  bool _mixerStarted = false; // only spin up flutter_pcm_sound when PCM/alarm needs it
   WebRtcReceiver? _webrtc;
   io.Socket? _socket;
   Timer? _watchdog;
@@ -60,7 +61,10 @@ class RoomConnection extends ChangeNotifier {
     _babies[_pendingId] = BabyStream(_pendingId, room.name)
       ..pending = true
       ..lastFrame = DateTime.now();
-    await _mixer.start();
+    // NOTE: don't start the PCM engine here. flutter_pcm_sound is a global
+    // singleton output; running it alongside a WebRTC audio track silences the
+    // WebRTC audio. Start it lazily only when a PCM (ESP) baby or the alarm
+    // actually needs it (see _ensureMixer).
     final socket = io.io(
       _url,
       io.OptionBuilder().setTransports(['websocket']).disableAutoConnect().setReconnectionDelay(1000).build(),
@@ -155,6 +159,8 @@ class RoomConnection extends ChangeNotifier {
 
     _babies.remove(_pendingId); // a real device is streaming — drop the placeholder
 
+    _ensureMixer(); // a PCM device is streaming — we need the PCM engine now
+
     var baby = _babies[id];
     if (baby == null) {
       baby = BabyStream(id, (name == null || name.isEmpty) ? 'Baby' : name);
@@ -203,6 +209,14 @@ class RoomConnection extends ChangeNotifier {
     _tick(); // recompute health + alarm immediately
   }
 
+  /// Spin up flutter_pcm_sound on demand (idempotent). Kept off for WebRTC-only
+  /// rooms so it can't fight the WebRTC audio output.
+  void _ensureMixer() {
+    if (_mixerStarted) return;
+    _mixerStarted = true;
+    _mixer.start();
+  }
+
   void _applyMute(BabyStream baby) {
     if (baby.kind == BabyKind.webrtc) {
       // WebRTC has no reliable receive-side level (getStats audioLevel is absent
@@ -244,24 +258,29 @@ class RoomConnection extends ChangeNotifier {
       _applyMute(baby);
     }
 
-    // The expected-device placeholder: drop it once a real device streams;
-    // otherwise, after the connect grace window with nothing, alarm on it so
-    // an already-offline room is audible, not a silent "waiting" screen.
+    // The expected-device placeholder: drop it once a real device streams.
+    // It NEVER alarms — a room that never had a device just shows "Connecting…"
+    // (then a calm "no device yet"). Only a baby that was present and dropped
+    // alarms (handled by the stalled logic above + participant-left).
     final ph = _babies[_pendingId];
     if (ph != null) {
       final hasReal = _babies.keys.any((k) => k != _pendingId);
       if (hasReal) {
         _babies.remove(_pendingId);
-      } else if (link == LinkState.listening &&
-          now.difference(_startedAt).inSeconds >= _connectGraceSec) {
-        ph.health = AudioHealth.stalled;
       } else {
         ph.health = AudioHealth.quiet;
+        if (link == LinkState.listening && now.difference(_startedAt).inSeconds >= _connectGraceSec) {
+          ph.waitedTooLong = true;
+        }
       }
     }
 
     // Room-level audible alarm: beep while any baby is stalled and un-silenced.
-    _mixer.alarm = anyUnackedAlarm;
+    // A WebRTC baby that dropped has no audio track left, so starting the PCM
+    // engine now to beep doesn't fight anything.
+    final alarm = anyUnackedAlarm;
+    if (alarm) _ensureMixer();
+    _mixer.alarm = alarm;
     notifyListeners();
   }
 

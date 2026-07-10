@@ -26,12 +26,12 @@ class BabyCard extends StatelessWidget {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final level = baby.effectiveMuted ? 0.0 : baby.level;
 
-    // A placeholder for the room's expected device (no audio yet): show connect
-    // state only — the audio controls would be meaningless.
+    // A placeholder for the room's expected device (no audio yet): we're
+    // already connected to the room — just waiting for a device. Never an alarm.
     final (statusText, statusColor) = baby.pending
-        ? (baby.health == AudioHealth.stalled
-            ? ('No audio — check the device', s.danger)
-            : ('Connecting…', muted))
+        ? (baby.waitedTooLong
+            ? ('No device yet — is it on?', muted)
+            : ('Waiting for a device', muted))
         : switch (baby.health) {
             AudioHealth.stalled => ('No audio — reconnecting', s.danger),
             AudioHealth.live => baby.level > 0.5 ? ('Crying!', s.danger) : ('Listening', s.success),

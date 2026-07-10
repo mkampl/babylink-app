@@ -14,8 +14,10 @@ class BabyStream {
   BabyKind kind;
 
   /// A placeholder for the room's expected device before any audio arrives —
-  /// so an already-offline device shows + alarms instead of an empty screen.
+  /// shows "Connecting…" instead of a blank screen. It NEVER alarms: only a
+  /// baby that was actually present and then dropped does.
   bool pending = false;
+  bool waitedTooLong = false; // grace window passed with still no device
 
   double level = 0; // 0..1 latest peak
   AudioHealth health = AudioHealth.quiet;
