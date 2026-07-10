@@ -3,6 +3,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../store/app_store.dart';
 import '../theme.dart';
+import 'monitor_service.dart';
 import 'room_connection.dart';
 
 class MonitorScreen extends StatefulWidget {
@@ -19,14 +20,17 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   void initState() {
     super.initState();
+    MonitorService.configure();
+    MonitorService.start(widget.room.name); // keep audio alive in the background
     _conn = RoomConnection(widget.room);
     _conn.start();
-    WakelockPlus.enable(); // keep the phone awake while monitoring
+    WakelockPlus.enable(); // keep the screen awake while it's in front
   }
 
   @override
   void dispose() {
     WakelockPlus.disable();
+    MonitorService.stop();
     _conn.dispose();
     super.dispose();
   }
@@ -86,21 +90,27 @@ class _MonitorScreenState extends State<MonitorScreen> {
           _Meter(level: _conn.muted ? 0 : _conn.level),
           Gap.hLg,
 
-          // Auto-listen (VOX): auto-mute when quiet, unmute on sound.
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Auto-listen'),
-            subtitle: const Text('Only play when the baby makes a sound'),
-            value: _conn.autoListen,
-            onChanged: (v) => _conn.setAutoListen(v),
-          ),
-          if (!_conn.autoListen) ...[
-            Gap.hSm,
+          // When disconnected the alarm beeps until acknowledged.
+          if (_conn.alarming) ...[
+            FilledButton.icon(
+              onPressed: _conn.alarmAcked ? null : _conn.acknowledgeAlarm,
+              icon: Icon(_conn.alarmAcked
+                  ? Icons.notifications_off_rounded
+                  : Icons.notifications_active_rounded),
+              label: Text(_conn.alarmAcked ? 'Alarm silenced' : 'Silence alarm'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _conn.alarmAcked ? null : s.danger,
+              ),
+            ),
+          ] else ...[
+            // Auto-listen is always on; this is a hard mute for full silence.
             FilledButton.icon(
               onPressed: () => _conn.setManualMute(!_conn.manualMute),
-              icon: Icon(_conn.muted ? Icons.volume_off_rounded : Icons.volume_up_rounded),
-              label: Text(_conn.muted ? 'Unmute' : 'Mute'),
-              style: FilledButton.styleFrom(backgroundColor: _conn.muted ? s.danger : null),
+              icon: Icon(_conn.manualMute ? Icons.volume_off_rounded : Icons.volume_up_rounded),
+              label: Text(_conn.manualMute ? 'Unmute' : 'Mute'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _conn.manualMute ? s.danger : null,
+              ),
             ),
           ],
           Gap.hLg,

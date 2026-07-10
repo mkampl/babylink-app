@@ -29,11 +29,14 @@ class RoomConnection extends ChangeNotifier {
   double get volume => _player.volume;
   double sensitivity = 1.0;
 
-  // Muting: manual toggle, OR auto-listen (VOX) which only unmutes on sound.
+  // Auto-listen (VOX) is ALWAYS on by default (like the web): mute during
+  // quiet, unmute on sound. manualMute is a hard override for full silence.
   bool manualMute = false;
-  bool autoListen = false;
+  bool alarmAcked = false; // user silenced the connection-lost beep
   static const _voxHoldMs = 4000; // stay unmuted this long after the last sound
+  static const _soundThreshold = 0.12; // level that counts as real sound (not ambient)
   bool get muted => _player.muted; // effective (post-VOX) mute, for the UI
+  bool get alarming => health == AudioHealth.stalled;
 
   DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
@@ -112,16 +115,16 @@ class RoomConnection extends ChangeNotifier {
     _lastFrame = now;
     final lvl = (peak / 32768.0) * sensitivity;
     level = lvl.clamp(0.0, 1.0);
-    if (level > 0.03) _lastEnergy = now;
+    if (level > _soundThreshold) _lastEnergy = now;
     _applyMute(); // VOX unmutes immediately on sound
     notifyListeners();
   }
 
-  /// Effective mute: auto-listen mutes during quiet and unmutes on recent
-  /// sound (sensitivity-tunable); otherwise the manual toggle applies.
+  /// Effective mute: a hard manual mute wins; otherwise auto-listen mutes
+  /// during quiet and unmutes on recent sound (Sensitivity tunes the trigger).
   void _applyMute() {
     final quietFor = DateTime.now().difference(_lastEnergy).inMilliseconds;
-    _player.muted = autoListen ? (quietFor > _voxHoldMs) : manualMute;
+    _player.muted = manualMute || (quietFor > _voxHoldMs);
   }
 
   /// The 'audio' payload can arrive as raw bytes or a JSON-serialized Buffer.
@@ -150,9 +153,10 @@ class RoomConnection extends ChangeNotifier {
     if (level > 0 && sinceFrame > 400) {
       level = 0; // decay the meter when frames pause
     }
-    // Audible connection-lost alert: when stalled, beep through the speaker
-    // (overrides mute) so a not-watching parent HEARS the drop.
-    _player.alarm = health == AudioHealth.stalled;
+    // Reset the ack once audio is back, so the NEXT disconnect beeps again.
+    if (health != AudioHealth.stalled) alarmAcked = false;
+    // Audible connection-lost alert: beep until the user acknowledges it.
+    _player.alarm = health == AudioHealth.stalled && !alarmAcked;
     _applyMute();
     if (prev != health || true) notifyListeners();
   }
@@ -163,9 +167,10 @@ class RoomConnection extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setAutoListen(bool on) {
-    autoListen = on;
-    _applyMute();
+  /// Silence the connection-lost beep (the state stays shown until it recovers).
+  void acknowledgeAlarm() {
+    alarmAcked = true;
+    _player.alarm = false;
     notifyListeners();
   }
 
