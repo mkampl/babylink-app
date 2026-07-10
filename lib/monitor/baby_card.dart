@@ -23,13 +23,20 @@ class BabyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final s = context.status;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final level = baby.effectiveMuted ? 0.0 : baby.level;
 
-    final (statusText, statusColor) = switch (baby.health) {
-      AudioHealth.stalled => ('No audio — reconnecting', s.danger),
-      AudioHealth.live => baby.level > 0.5 ? ('Crying!', s.danger) : ('Listening', s.success),
-      AudioHealth.quiet => ('Quiet', s.success),
-    };
+    // A placeholder for the room's expected device (no audio yet): show connect
+    // state only — the audio controls would be meaningless.
+    final (statusText, statusColor) = baby.pending
+        ? (baby.health == AudioHealth.stalled
+            ? ('No audio — check the device', s.danger)
+            : ('Connecting…', muted))
+        : switch (baby.health) {
+            AudioHealth.stalled => ('No audio — reconnecting', s.danger),
+            AudioHealth.live => baby.level > 0.5 ? ('Crying!', s.danger) : ('Listening', s.success),
+            AudioHealth.quiet => ('Quiet', s.success),
+          };
 
     return Card(
       child: Padding(
@@ -49,30 +56,34 @@ class BabyCard extends StatelessWidget {
                   child: Text(baby.name, style: t.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 Text(statusText, style: t.labelMedium!.copyWith(color: statusColor)),
-                Gap.wSm,
-                IconButton(
-                  onPressed: () => onMute(!baby.manualMute),
-                  icon: Icon(baby.manualMute ? Icons.volume_off_rounded : Icons.volume_up_rounded),
-                  color: baby.manualMute ? s.danger : null,
-                  tooltip: baby.manualMute ? 'Unmute' : 'Mute',
-                ),
+                if (!baby.pending) ...[
+                  Gap.wSm,
+                  IconButton(
+                    onPressed: () => onMute(!baby.manualMute),
+                    icon: Icon(baby.manualMute ? Icons.volume_off_rounded : Icons.volume_up_rounded),
+                    color: baby.manualMute ? s.danger : null,
+                    tooltip: baby.manualMute ? 'Unmute' : 'Mute',
+                  ),
+                ],
               ],
             ),
-            Gap.hSm,
-            ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.pill),
-              child: LinearProgressIndicator(
-                value: level.clamp(0.0, 1.0),
-                minHeight: 10,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                valueColor: AlwaysStoppedAnimation(
-                  level > 0.5 ? s.danger : (level > 0.2 ? s.warning : s.success),
+            if (!baby.pending) ...[
+              Gap.hSm,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(Radii.pill),
+                child: LinearProgressIndicator(
+                  value: level.clamp(0.0, 1.0),
+                  minHeight: 10,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                  valueColor: AlwaysStoppedAnimation(
+                    level > 0.5 ? s.danger : (level > 0.2 ? s.warning : s.success),
+                  ),
                 ),
               ),
-            ),
-            Gap.hSm,
-            _slider(context, Icons.volume_up_rounded, baby.volume, 0, 1, onVolume),
-            _slider(context, Icons.graphic_eq_rounded, baby.sensitivity, 0.5, 3.0, onSensitivity),
+              Gap.hSm,
+              _slider(context, Icons.volume_up_rounded, baby.volume, 0, 1, onVolume),
+              _slider(context, Icons.graphic_eq_rounded, baby.sensitivity, 0.5, 3.0, onSensitivity),
+            ],
           ],
         ),
       ),

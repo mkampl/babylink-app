@@ -27,6 +27,10 @@ class RoomConnection extends ChangeNotifier {
 
   static const _voxHoldMs = 4000;
   static const _soundThreshold = 0.12;
+  static const _pendingId = '__pending__'; // the expected-device placeholder
+  static const _connectGraceSec = 12; // no device by now → alarm, don't sit silent
+
+  DateTime _startedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   List<BabyStream> get babies {
     final list = _babies.values.toList();
@@ -45,6 +49,12 @@ class RoomConnection extends ChangeNotifier {
   }
 
   Future<void> start() async {
+    _startedAt = DateTime.now();
+    // Show the room's expected device right away so a device that's already
+    // offline surfaces (and alarms) instead of an empty "waiting" screen.
+    _babies[_pendingId] = BabyStream(_pendingId, room.name)
+      ..pending = true
+      ..lastFrame = DateTime.now();
     await _mixer.start();
     final socket = io.io(
       _url,
@@ -81,6 +91,8 @@ class RoomConnection extends ChangeNotifier {
     if (data is! Map) return;
     final id = (data['fromId'] ?? 'baby').toString();
     final name = data['fromName']?.toString();
+
+    _babies.remove(_pendingId); // a real device is streaming — drop the placeholder
 
     var baby = _babies[id];
     if (baby == null) {
@@ -146,6 +158,7 @@ class RoomConnection extends ChangeNotifier {
   void _tick() {
     final now = DateTime.now();
     for (final baby in _babies.values) {
+      if (baby.id == _pendingId) continue; // the placeholder is handled below
       final sinceFrame = now.difference(baby.lastFrame).inMilliseconds;
       final sinceEnergy = now.difference(baby.lastEnergy).inMilliseconds;
       if (sinceFrame > 8000) {
@@ -159,6 +172,23 @@ class RoomConnection extends ChangeNotifier {
       if (baby.health != AudioHealth.stalled) _ackedStalls.remove(baby.id);
       _applyMute(baby);
     }
+
+    // The expected-device placeholder: drop it once a real device streams;
+    // otherwise, after the connect grace window with nothing, alarm on it so
+    // an already-offline room is audible, not a silent "waiting" screen.
+    final ph = _babies[_pendingId];
+    if (ph != null) {
+      final hasReal = _babies.keys.any((k) => k != _pendingId);
+      if (hasReal) {
+        _babies.remove(_pendingId);
+      } else if (link == LinkState.listening &&
+          now.difference(_startedAt).inSeconds >= _connectGraceSec) {
+        ph.health = AudioHealth.stalled;
+      } else {
+        ph.health = AudioHealth.quiet;
+      }
+    }
+
     // Room-level audible alarm: beep while any baby is stalled and un-silenced.
     _mixer.alarm = anyUnackedAlarm;
     notifyListeners();

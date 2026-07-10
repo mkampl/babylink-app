@@ -7,6 +7,10 @@ class BabyStream {
   final String id; // esp32 device id (the frame's fromId)
   String name;
 
+  /// A placeholder for the room's expected device before any audio arrives —
+  /// so an already-offline device shows + alarms instead of an empty screen.
+  bool pending = false;
+
   double level = 0; // 0..1 latest peak
   AudioHealth health = AudioHealth.quiet;
   DateTime lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
