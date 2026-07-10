@@ -7,19 +7,23 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../store/app_store.dart';
 import 'baby_stream.dart';
 import 'pcm_player.dart';
+import 'webrtc_receiver.dart';
 
 enum LinkState { connecting, listening, reconnecting }
 
-/// Connects to a room over Socket.IO as a parent and plays EVERY baby's PCM
-/// audio, mixed, with per-baby meter/health/controls — matching the web app's
-/// multi-baby monitor. One instance per open monitor.
+/// Connects to a room over Socket.IO as a parent and plays EVERY baby, mixed,
+/// with per-baby meter/health/controls — matching the web app's multi-baby
+/// monitor. ESP32 devices arrive as PCM frames (PcmMixer); phones/browsers
+/// arrive over WebRTC (WebRtcReceiver). One instance per open monitor.
 class RoomConnection extends ChangeNotifier {
   final SavedRoom room;
   RoomConnection(this.room);
 
   final PcmMixer _mixer = PcmMixer();
+  WebRtcReceiver? _webrtc;
   io.Socket? _socket;
   Timer? _watchdog;
+  Timer? _levelPoll;
 
   LinkState link = LinkState.connecting;
   final Map<String, BabyStream> _babies = {};
@@ -27,6 +31,7 @@ class RoomConnection extends ChangeNotifier {
 
   static const _voxHoldMs = 4000;
   static const _soundThreshold = 0.12;
+  static const _webrtcGain = 8.0; // WebRTC audioLevel (0..1 RMS) → meter scale
   static const _pendingId = '__pending__'; // the expected-device placeholder
   static const _connectGraceSec = 12; // no device by now → alarm, don't sit silent
 
@@ -62,17 +67,29 @@ class RoomConnection extends ChangeNotifier {
     );
     _socket = socket;
 
+    // WebRTC path for phone/browser babies (ESP32 stays on PCM).
+    final webrtc = WebRtcReceiver(socket, _url);
+    _webrtc = webrtc;
+    webrtc.onLive = _onWebrtcLive;
+    webrtc.onLevel = _onWebrtcLevel;
+    await webrtc.init();
+
     socket.onConnect((_) {
       link = LinkState.connecting;
       socket.emit('join', {'roomId': room.roomId, 'role': 'parent', 'userName': 'BabyLink app'});
       notifyListeners();
     });
-    socket.on('room-state', (_) {
+    socket.on('room-state', (data) {
       link = LinkState.listening;
+      _kickBabies(data is Map ? data['participants'] : null);
       notifyListeners();
     });
-    socket.on('participant-joined', (_) => notifyListeners());
+    socket.on('participant-joined', (data) {
+      if (data is Map && data['role'] == 'baby') _kickBaby(data['socketId']?.toString());
+      notifyListeners();
+    });
     socket.on('participant-left', _onParticipantLeft);
+    socket.on('signal', (data) => webrtc.handleSignal(data));
     socket.on('esp32-audio', _onAudio);
     socket.onDisconnect((_) {
       link = LinkState.reconnecting;
@@ -85,6 +102,50 @@ class RoomConnection extends ChangeNotifier {
     socket.connect();
 
     _watchdog = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _levelPoll = Timer.periodic(const Duration(milliseconds: 300), (_) => _webrtc?.pollLevels());
+  }
+
+  /// Ask every WebRTC baby in a room-state participant list to send its offer.
+  void _kickBabies(dynamic participants) {
+    if (participants is! List) return;
+    for (final p in participants) {
+      if (p is Map && p['role'] == 'baby') _kickBaby(p['socketId']?.toString());
+    }
+  }
+
+  void _kickBaby(String? socketId) {
+    if (socketId == null) return;
+    if (WebRtcReceiver.isWebrtcBaby(socketId) && _webrtc?.has(socketId) != true) {
+      _webrtc?.requestOffer(socketId);
+    }
+  }
+
+  // ---- WebRTC baby callbacks ----
+  void _onWebrtcLive(String id, String name) {
+    _babies.remove(_pendingId);
+    var baby = _babies[id];
+    if (baby == null) {
+      baby = BabyStream(id, name.isEmpty ? 'Baby' : name, kind: BabyKind.webrtc);
+      _babies[id] = baby;
+    } else {
+      baby.kind = BabyKind.webrtc;
+      if (name.isNotEmpty) baby.name = name;
+    }
+    baby.lastFrame = DateTime.now();
+    _ackedStalls.remove(id);
+    notifyListeners();
+  }
+
+  void _onWebrtcLevel(String id, double raw) {
+    final baby = _babies[id];
+    if (baby == null) return;
+    final now = DateTime.now();
+    baby.lastFrame = now; // a fresh stat proves the stream is still alive
+    final scaled = (raw * _webrtcGain).clamp(0.0, 1.0);
+    baby.level = (scaled * baby.sensitivity).clamp(0.0, 1.0);
+    if (baby.level > _soundThreshold) baby.lastEnergy = now;
+    _applyMute(baby);
+    notifyListeners();
   }
 
   void _onAudio(dynamic data) {
@@ -136,6 +197,7 @@ class RoomConnection extends ChangeNotifier {
         baby.lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
         baby.level = 0;
         _ackedStalls.remove(baby.id); // this is a fresh disconnect — beep again
+        if (baby.kind == BabyKind.webrtc) _webrtc?.remove(baby.id); // tear the dead peer down
       }
     }
     _tick(); // recompute health + alarm immediately
@@ -144,7 +206,13 @@ class RoomConnection extends ChangeNotifier {
   void _applyMute(BabyStream baby) {
     final quietFor = DateTime.now().difference(baby.lastEnergy).inMilliseconds;
     baby.effectiveMuted = baby.manualMute || (quietFor > _voxHoldMs);
-    _mixer.setMuted(baby.id, baby.effectiveMuted);
+    if (baby.kind == BabyKind.webrtc) {
+      // Set playback volume (0 = muted) but keep the track flowing so auto-listen
+      // can still read the incoming level from getStats.
+      _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
+    } else {
+      _mixer.setMuted(baby.id, baby.effectiveMuted);
+    }
   }
 
   Uint8List? _extractBytes(dynamic audio) {
@@ -207,7 +275,11 @@ class RoomConnection extends ChangeNotifier {
     final b = _babies[id];
     if (b == null) return;
     b.volume = v.clamp(0.0, 1.0);
-    _mixer.setVolume(id, b.volume);
+    if (b.kind == BabyKind.webrtc) {
+      _applyMute(b); // re-applies the effective playback volume
+    } else {
+      _mixer.setVolume(id, b.volume);
+    }
     notifyListeners();
   }
 
@@ -228,6 +300,8 @@ class RoomConnection extends ChangeNotifier {
   @override
   void dispose() {
     _watchdog?.cancel();
+    _levelPoll?.cancel();
+    _webrtc?.dispose();
     try {
       _socket?.dispose();
     } catch (_) {}

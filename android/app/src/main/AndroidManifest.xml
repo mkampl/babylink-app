@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- WebRTC audio routing (receive phone/browser baby streams). -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
     <!-- Bluetooth LE — scan for and provision the BabyLink device.
          Android 12+ split BT into runtime permissions. We scan by service UUID
          and never derive location, so BLUETOOTH_SCAN is flagged neverForLocation
