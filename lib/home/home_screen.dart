@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../baby/baby_screen.dart';
 import '../monitor/monitor_screen.dart';
 import '../server/babylink_server.dart';
 import '../setup/screens/scan_screen.dart';
@@ -153,6 +154,11 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => MonitorScreen(room: r)));
   }
 
+  /// Use THIS phone as a baby unit — stream its mic into the room.
+  void _useAsBaby(SavedRoom r) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => BabyScreen(room: r)));
+  }
+
   Future<void> _open(SavedRoom r) async {
     final uri = Uri.parse(r.roomLink);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -219,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onCopy: () => _copy(rooms[i]),
                       onOpen: () => _open(rooms[i]),
                       onAddDevice: () => _addDevice(rooms[i]),
+                      onUseAsBaby: () => _useAsBaby(rooms[i]),
                       onDelete: () => _delete(rooms[i]),
                     ),
                   ),
@@ -252,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _RoomCard extends StatelessWidget {
   final SavedRoom room;
-  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onDelete;
+  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onUseAsBaby, onDelete;
   const _RoomCard({
     required this.room,
     required this.onListen,
@@ -260,6 +267,7 @@ class _RoomCard extends StatelessWidget {
     required this.onCopy,
     required this.onOpen,
     required this.onAddDevice,
+    required this.onUseAsBaby,
     required this.onDelete,
   });
 
@@ -301,9 +309,14 @@ class _RoomCard extends StatelessWidget {
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_horiz_rounded),
-                  onSelected: (v) => v == 'add' ? onAddDevice() : onDelete(),
+                  onSelected: (v) => switch (v) {
+                    'add' => onAddDevice(),
+                    'baby' => onUseAsBaby(),
+                    _ => onDelete(),
+                  },
                   itemBuilder: (_) => const [
                     PopupMenuItem(value: 'add', child: Text('Add a device')),
+                    PopupMenuItem(value: 'baby', child: Text('Use this phone as a baby')),
                     PopupMenuItem(value: 'remove', child: Text('Remove room')),
                   ],
                 ),
