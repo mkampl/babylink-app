@@ -113,15 +113,20 @@ class RoomConnection extends ChangeNotifier {
   }
 
   void _onParticipantLeft(dynamic data) {
+    // A baby going offline must NOT vanish from the monitor — it must show
+    // "no audio" and sound the alarm. So instead of removing the card, mark it
+    // stalled (old last-frame) and re-arm its alarm; the tick does the rest.
     if (data is Map) {
       final id = data['socketId']?.toString();
-      if (id != null && _babies.containsKey(id)) {
-        _babies.remove(id);
-        _mixer.removeSource(id);
-        _ackedStalls.remove(id);
+      final baby = id == null ? null : _babies[id];
+      if (baby != null) {
+        baby.lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
+        baby.lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
+        baby.level = 0;
+        _ackedStalls.remove(baby.id); // this is a fresh disconnect — beep again
       }
     }
-    notifyListeners();
+    _tick(); // recompute health + alarm immediately
   }
 
   void _applyMute(BabyStream baby) {
