@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../server/babylink_server.dart';
+
 /// A room the user created for a device, with everything needed to share it and
 /// (later) manage it.
 class SavedRoom {
@@ -61,6 +63,35 @@ class AppStore {
   static const _storage = FlutterSecureStorage();
   static const _kRooms = 'rooms_v1';
   static const _kWifi = 'wifi_v1';
+  static const _kServer = 'server_v1';
+
+  // ---- Server (self-hosting): the default instance for NEW rooms/devices.
+  // itvoodoo.at is just the public demo; existing rooms keep their own server.
+  Future<BabyLinkServer> currentServer() async {
+    final raw = await _storage.read(key: _kServer);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final j = jsonDecode(raw) as Map;
+        final host = j['host']?.toString();
+        final port = (j['port'] as num?)?.toInt();
+        if (host != null && host.isNotEmpty && port != null) {
+          return BabyLinkServer(host: host, port: port);
+        }
+      } catch (_) {}
+    }
+    return const BabyLinkServer();
+  }
+
+  Future<bool> isCustomServer() async {
+    final raw = await _storage.read(key: _kServer);
+    return raw != null && raw.isNotEmpty;
+  }
+
+  Future<void> setServer(String host, int port) async {
+    await _storage.write(key: _kServer, value: jsonEncode({'host': host, 'port': port}));
+  }
+
+  Future<void> resetServer() async => _storage.delete(key: _kServer);
 
   // ---- Rooms ----
   Future<List<SavedRoom>> loadRooms() async {

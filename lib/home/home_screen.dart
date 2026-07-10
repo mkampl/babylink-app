@@ -8,6 +8,7 @@ import '../admin/room_admin_screen.dart';
 import '../baby/baby_screen.dart';
 import '../monitor/monitor_screen.dart';
 import '../server/babylink_server.dart';
+import '../settings/settings_screen.dart';
 import '../setup/screens/scan_screen.dart';
 import '../setup/setup_session.dart';
 import '../store/app_store.dart';
@@ -59,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (name == null || name.isEmpty) return;
     try {
-      const server = BabyLinkServer();
+      final server = await AppStore.instance.currentServer();
       final room = await server.createRoom(name);
       await AppStore.instance.addRoom(SavedRoom(
         roomId: room.roomId,
@@ -118,7 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     if (ok != true) return;
-    final match = RegExp(r'[0-9a-fA-F]{32}').firstMatch(controller.text);
+    final text = controller.text.trim();
+    final match = RegExp(r'[0-9a-fA-F]{32}').firstMatch(text);
     if (match == null) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -126,13 +128,25 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return;
     }
+    // A pasted link may point at a self-hosted server — honour its host. A bare
+    // id joins on the app's current server.
+    BabyLinkServer server;
+    if (text.contains('://') || (text.contains('/') && text.contains('.'))) {
+      try {
+        server = BabyLinkServer.parse(text);
+      } catch (_) {
+        server = await AppStore.instance.currentServer();
+      }
+    } else {
+      server = await AppStore.instance.currentServer();
+    }
     await AppStore.instance.addRoom(SavedRoom(
       roomId: match.group(0)!.toLowerCase(),
       ownerToken: null,
       name: nameController.text.trim().isEmpty ? 'BabyLink' : nameController.text.trim(),
       ssid: '',
-      serverHost: 'babylink.itvoodoo.at',
-      serverPort: 443,
+      serverHost: server.host,
+      serverPort: server.port,
       createdAt: DateTime.now(),
     ));
     _load();
@@ -259,6 +273,13 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _addByLink,
             icon: const Icon(Icons.add_link_rounded),
             tooltip: 'Add a room by link',
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
+                .then((_) => _load()),
+            icon: const Icon(Icons.dns_rounded),
+            tooltip: 'Server settings',
           ),
         ],
       ),

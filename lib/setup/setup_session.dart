@@ -5,12 +5,17 @@ import '../store/app_store.dart';
 /// Carries state across the setup wizard screens. One instance per setup run.
 class SetupSession {
   final BabyLinkBle ble = BabyLinkBle();
-  final BabyLinkServer server = const BabyLinkServer();
 
   /// When set, we provision the device into this EXISTING room instead of
   /// creating a new one (the "add a device to a room" flow).
   final SavedRoom? targetRoom;
   SetupSession({this.targetRoom});
+
+  /// Provision against the target room's own server (so a self-hosted room
+  /// points its device at the right instance).
+  BabyLinkServer get server => targetRoom != null
+      ? BabyLinkServer(host: targetRoom!.serverHost, port: targetRoom!.serverPort)
+      : const BabyLinkServer();
 
   DeviceInfo? info; // read on connect
   WifiNetwork? network; // chosen network
