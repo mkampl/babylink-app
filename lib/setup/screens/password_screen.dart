@@ -7,7 +7,7 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/step_scaffold.dart';
 import '../../widgets/tip_banner.dart';
 import '../setup_session.dart';
-import 'applying_screen.dart';
+import 'name_room_screen.dart';
 
 class PasswordScreen extends StatefulWidget {
   final SetupSession session;
@@ -46,7 +46,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
     if (_controller.text.isEmpty) return;
     widget.session.password = _controller.text;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ApplyingScreen(session: widget.session),
+      builder: (_) => NameRoomScreen(session: widget.session),
     ));
   }
 
@@ -58,8 +58,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
       bottom: ValueListenableBuilder(
         valueListenable: _controller,
         builder: (_, value, __) => PrimaryButton(
-          'Connect BabyLink',
-          icon: Icons.check_rounded,
+          'Next',
+          icon: Icons.arrow_forward_rounded,
           onPressed: value.text.isEmpty ? null : _submit,
         ),
       ),

@@ -72,7 +72,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
                   Expanded(
                     child: FilledButton.tonalIcon(
                       onPressed: () => SharePlus.instance.share(
-                          ShareParams(text: 'Join ${s.deviceName} on BabyLink 👶\n$link')),
+                          ShareParams(text: 'Join ${s.effectiveRoomName} on BabyLink 👶\n$link')),
                       icon: const Icon(Icons.ios_share_rounded, size: 20),
                       label: const Text('Share link'),
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),

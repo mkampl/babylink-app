@@ -11,10 +11,14 @@ class SetupSession {
   String? manualSsid; // if entered by hand
   bool manualSecure = true;
   String? password;
+  String roomName = ''; // what the user calls this room (home + monitor title)
   RoomCreation? room; // created on the server
 
   String get ssid => network?.ssid ?? manualSsid ?? '';
   bool get secure => network?.secure ?? manualSecure;
+
+  /// The room's display name: the user's choice, or a sensible default.
+  String get effectiveRoomName => roomName.trim().isNotEmpty ? roomName.trim() : deviceName;
 
   /// The room link to share once a room exists — role-less, so the recipient
   /// can join as a parent or as a second baby device.
@@ -34,7 +38,7 @@ class SetupSession {
 
   /// Build the config JSON the ESP expects (cfg_v3 shape).
   Map<String, dynamic> buildConfig() => {
-        'deviceName': deviceName,
+        'deviceName': effectiveRoomName,
         'activeServer': 0,
         'wifi': [
           {'ssid': ssid, 'password': password ?? ''}

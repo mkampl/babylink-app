@@ -34,7 +34,7 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
     try {
       // 1) Create the room on the server (so the user never types server/room).
       setState(() => _stage = _Stage.room);
-      s.room = await s.server.createRoom(s.deviceName);
+      s.room = await s.server.createRoom(s.effectiveRoomName);
 
       // 2) Stage the config, then 3) apply (device persists + reboots).
       setState(() => _stage = _Stage.saving);
@@ -60,7 +60,7 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
         await AppStore.instance.addRoom(SavedRoom(
           roomId: s.room!.roomId,
           ownerToken: s.room!.ownerToken,
-          name: s.deviceName,
+          name: s.effectiveRoomName,
           ssid: s.ssid,
           serverHost: s.server.host,
           serverPort: s.server.port,
