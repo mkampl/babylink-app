@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../admin/room_admin.dart';
+import '../admin/room_admin_screen.dart';
 import '../baby/baby_screen.dart';
 import '../monitor/monitor_screen.dart';
 import '../server/babylink_server.dart';
@@ -150,13 +152,72 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _listen(SavedRoom r) {
+  Future<void> _listen(SavedRoom r) async {
+    if (!await _pinGate(r)) return;
+    if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => MonitorScreen(room: r)));
   }
 
   /// Use THIS phone as a baby unit — stream its mic into the room.
-  void _useAsBaby(SavedRoom r) {
+  Future<void> _useAsBaby(SavedRoom r) async {
+    if (!await _pinGate(r)) return;
+    if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => BabyScreen(room: r)));
+  }
+
+  void _manage(SavedRoom r) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => RoomAdminScreen(room: r)))
+        .then((_) => _load());
+  }
+
+  /// Gate entry to a PIN-protected room. The owner (holds the token) skips it;
+  /// someone who joined by link must enter the PIN. Returns true to proceed.
+  Future<bool> _pinGate(SavedRoom r) async {
+    if (r.ownerToken != null) return true;
+    final admin = RoomAdmin(r);
+    bool hasPin;
+    try {
+      hasPin = await admin.hasPin();
+    } catch (_) {
+      return true; // can't reach the server to check — don't hard-block
+    }
+    if (!hasPin) return true;
+    while (mounted) {
+      final pin = await _promptPin();
+      if (pin == null) return false; // cancelled
+      final res = await admin.verifyPin(pin);
+      if (res == PinVerify.ok) return true;
+      if (!mounted) return false;
+      final msg = res == PinVerify.locked
+          ? 'Too many attempts — wait a moment and try again.'
+          : 'That PIN didn’t match.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (res == PinVerify.locked) return false;
+    }
+    return false;
+  }
+
+  Future<String?> _promptPin() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter room PIN'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'PIN'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Unlock')),
+        ],
+      ),
+    );
   }
 
   Future<void> _open(SavedRoom r) async {
@@ -226,6 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onOpen: () => _open(rooms[i]),
                       onAddDevice: () => _addDevice(rooms[i]),
                       onUseAsBaby: () => _useAsBaby(rooms[i]),
+                      onManage: () => _manage(rooms[i]),
                       onDelete: () => _delete(rooms[i]),
                     ),
                   ),
@@ -259,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _RoomCard extends StatelessWidget {
   final SavedRoom room;
-  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onUseAsBaby, onDelete;
+  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onUseAsBaby, onManage, onDelete;
   const _RoomCard({
     required this.room,
     required this.onListen,
@@ -268,6 +330,7 @@ class _RoomCard extends StatelessWidget {
     required this.onOpen,
     required this.onAddDevice,
     required this.onUseAsBaby,
+    required this.onManage,
     required this.onDelete,
   });
 
@@ -312,12 +375,16 @@ class _RoomCard extends StatelessWidget {
                   onSelected: (v) => switch (v) {
                     'add' => onAddDevice(),
                     'baby' => onUseAsBaby(),
+                    'manage' => onManage(),
                     _ => onDelete(),
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'add', child: Text('Add a device')),
-                    PopupMenuItem(value: 'baby', child: Text('Use this phone as a baby')),
-                    PopupMenuItem(value: 'remove', child: Text('Remove room')),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'add', child: Text('Add a device')),
+                    const PopupMenuItem(value: 'baby', child: Text('Use this phone as a baby')),
+                    // Only the owner (holds the token) can manage the room.
+                    if (room.ownerToken != null)
+                      const PopupMenuItem(value: 'manage', child: Text('Manage room')),
+                    const PopupMenuItem(value: 'remove', child: Text('Remove room')),
                   ],
                 ),
               ],
