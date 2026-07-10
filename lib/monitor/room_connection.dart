@@ -26,9 +26,14 @@ class RoomConnection extends ChangeNotifier {
   AudioHealth health = AudioHealth.quiet;
   String babyName = '';
   double level = 0; // 0..1 peak of the latest audio
-  bool get muted => _player.muted;
   double get volume => _player.volume;
   double sensitivity = 1.0;
+
+  // Muting: manual toggle, OR auto-listen (VOX) which only unmutes on sound.
+  bool manualMute = false;
+  bool autoListen = false;
+  static const _voxHoldMs = 4000; // stay unmuted this long after the last sound
+  bool get muted => _player.muted; // effective (post-VOX) mute, for the UI
 
   DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
@@ -108,7 +113,15 @@ class RoomConnection extends ChangeNotifier {
     final lvl = (peak / 32768.0) * sensitivity;
     level = lvl.clamp(0.0, 1.0);
     if (level > 0.03) _lastEnergy = now;
+    _applyMute(); // VOX unmutes immediately on sound
     notifyListeners();
+  }
+
+  /// Effective mute: auto-listen mutes during quiet and unmutes on recent
+  /// sound (sensitivity-tunable); otherwise the manual toggle applies.
+  void _applyMute() {
+    final quietFor = DateTime.now().difference(_lastEnergy).inMilliseconds;
+    _player.muted = autoListen ? (quietFor > _voxHoldMs) : manualMute;
   }
 
   /// The 'audio' payload can arrive as raw bytes or a JSON-serialized Buffer.
@@ -137,11 +150,22 @@ class RoomConnection extends ChangeNotifier {
     if (level > 0 && sinceFrame > 400) {
       level = 0; // decay the meter when frames pause
     }
+    // Audible connection-lost alert: when stalled, beep through the speaker
+    // (overrides mute) so a not-watching parent HEARS the drop.
+    _player.alarm = health == AudioHealth.stalled;
+    _applyMute();
     if (prev != health || true) notifyListeners();
   }
 
-  void setMuted(bool m) {
-    _player.muted = m;
+  void setManualMute(bool m) {
+    manualMute = m;
+    _applyMute();
+    notifyListeners();
+  }
+
+  void setAutoListen(bool on) {
+    autoListen = on;
+    _applyMute();
     notifyListeners();
   }
 

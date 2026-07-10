@@ -66,7 +66,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
         children: [
           Gap.hMd,
           // Big status orb
-          _StatusOrb(level: _conn.muted ? 0 : _conn.level, color: statusColor, pulse: crying),
+          _StatusOrb(
+            level: _conn.muted ? 0 : _conn.level,
+            color: statusColor,
+            pulse: crying || _conn.health == AudioHealth.stalled,
+          ),
           Gap.hLg,
           Center(child: Text(statusText, style: t.headlineSmall!.copyWith(color: statusColor))),
           Gap.hSm,
@@ -82,15 +86,23 @@ class _MonitorScreenState extends State<MonitorScreen> {
           _Meter(level: _conn.muted ? 0 : _conn.level),
           Gap.hLg,
 
-          // Mute toggle
-          FilledButton.icon(
-            onPressed: () => _conn.setMuted(!_conn.muted),
-            icon: Icon(_conn.muted ? Icons.volume_off_rounded : Icons.volume_up_rounded),
-            label: Text(_conn.muted ? 'Unmute' : 'Mute'),
-            style: FilledButton.styleFrom(
-              backgroundColor: _conn.muted ? s.danger : null,
-            ),
+          // Auto-listen (VOX): auto-mute when quiet, unmute on sound.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Auto-listen'),
+            subtitle: const Text('Only play when the baby makes a sound'),
+            value: _conn.autoListen,
+            onChanged: (v) => _conn.setAutoListen(v),
           ),
+          if (!_conn.autoListen) ...[
+            Gap.hSm,
+            FilledButton.icon(
+              onPressed: () => _conn.setManualMute(!_conn.manualMute),
+              icon: Icon(_conn.muted ? Icons.volume_off_rounded : Icons.volume_up_rounded),
+              label: Text(_conn.muted ? 'Unmute' : 'Mute'),
+              style: FilledButton.styleFrom(backgroundColor: _conn.muted ? s.danger : null),
+            ),
+          ],
           Gap.hLg,
 
           // Volume
