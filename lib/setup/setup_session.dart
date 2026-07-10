@@ -1,10 +1,16 @@
 import '../ble/babylink_ble.dart';
 import '../server/babylink_server.dart';
+import '../store/app_store.dart';
 
 /// Carries state across the setup wizard screens. One instance per setup run.
 class SetupSession {
   final BabyLinkBle ble = BabyLinkBle();
   final BabyLinkServer server = const BabyLinkServer();
+
+  /// When set, we provision the device into this EXISTING room instead of
+  /// creating a new one (the "add a device to a room" flow).
+  final SavedRoom? targetRoom;
+  SetupSession({this.targetRoom});
 
   DeviceInfo? info; // read on connect
   WifiNetwork? network; // chosen network
@@ -12,21 +18,29 @@ class SetupSession {
   bool manualSecure = true;
   String? password;
   String roomName = ''; // what the user calls this room (home + monitor title)
-  RoomCreation? room; // created on the server
+  RoomCreation? room; // created on the server (only in the create-room flow)
+
+  /// The room id we provision the device with — the existing room, or the
+  /// freshly-created one.
+  String get provisionRoomId => targetRoom?.roomId ?? room!.roomId;
 
   String get ssid => network?.ssid ?? manualSsid ?? '';
   bool get secure => network?.secure ?? manualSecure;
 
-  /// The room's display name: the user's choice, or a sensible default.
-  String get effectiveRoomName => roomName.trim().isNotEmpty ? roomName.trim() : deviceName;
+  /// The room's display name: the existing room, the user's choice, or a default.
+  String get effectiveRoomName =>
+      targetRoom?.name ?? (roomName.trim().isNotEmpty ? roomName.trim() : deviceName);
 
   /// The room link to share once a room exists — role-less, so the recipient
   /// can join as a parent or as a second baby device.
   String? get roomLink {
-    if (room == null) return null;
-    final scheme = server.port == 443 ? 'https' : 'http';
-    final authority = server.port == 443 ? server.host : '${server.host}:${server.port}';
-    return '$scheme://$authority/${room!.roomId}';
+    final id = targetRoom?.roomId ?? room?.roomId;
+    if (id == null) return null;
+    final host = targetRoom?.serverHost ?? server.host;
+    final port = targetRoom?.serverPort ?? server.port;
+    final scheme = port == 443 ? 'https' : 'http';
+    final authority = port == 443 ? host : '$host:$port';
+    return '$scheme://$authority/$id';
   }
 
   /// Friendly device name derived from the MAC, shown on the parent screen.
@@ -48,7 +62,7 @@ class SetupSession {
             'label': server.host,
             'host': server.host,
             'port': server.port,
-            'roomId': room!.roomId,
+            'roomId': provisionRoomId,
           }
         ],
       };

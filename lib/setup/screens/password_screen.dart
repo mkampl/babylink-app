@@ -7,6 +7,7 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/step_scaffold.dart';
 import '../../widgets/tip_banner.dart';
 import '../setup_session.dart';
+import 'applying_screen.dart';
 import 'name_room_screen.dart';
 
 class PasswordScreen extends StatefulWidget {
@@ -45,8 +46,11 @@ class _PasswordScreenState extends State<PasswordScreen> {
   void _submit() {
     if (_controller.text.isEmpty) return;
     widget.session.password = _controller.text;
+    // Adding to an existing room? It's already named — go straight to applying.
+    // Otherwise name the new room first.
+    final s = widget.session;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => NameRoomScreen(session: widget.session),
+      builder: (_) => s.targetRoom != null ? ApplyingScreen(session: s) : NameRoomScreen(session: s),
     ));
   }
 

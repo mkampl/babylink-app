@@ -32,9 +32,12 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
   Future<void> _run() async {
     final s = widget.session;
     try {
-      // 1) Create the room on the server (so the user never types server/room).
-      setState(() => _stage = _Stage.room);
-      s.room = await s.server.createRoom(s.effectiveRoomName);
+      // 1) Get the room: use the existing one, or create it (so the user never
+      //    types a server/room id).
+      if (s.targetRoom == null) {
+        setState(() => _stage = _Stage.room);
+        s.room = await s.server.createRoom(s.effectiveRoomName);
+      }
 
       // 2) Stage the config, then 3) apply (device persists + reboots).
       setState(() => _stage = _Stage.saving);
@@ -51,21 +54,35 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
 
       // 4) Wait for it to join WiFi and reach the server.
       setState(() => _stage = _Stage.joining);
-      final online = await s.server.waitForDeviceOnline(s.room!.roomId);
+      final online = await s.server.waitForDeviceOnline(s.provisionRoomId);
 
       if (online) {
-        // Persist the room (with its share link + owner token) and the WiFi
-        // password so re-provisioning another device is one tap.
+        // Remember the WiFi password so adding the next device is one tap.
         await AppStore.instance.saveWifi(s.ssid, s.password ?? '');
-        await AppStore.instance.addRoom(SavedRoom(
-          roomId: s.room!.roomId,
-          ownerToken: s.room!.ownerToken,
-          name: s.effectiveRoomName,
-          ssid: s.ssid,
-          serverHost: s.server.host,
-          serverPort: s.server.port,
-          createdAt: DateTime.now(),
-        ));
+        final target = s.targetRoom;
+        if (target == null) {
+          // New room from the create-and-provision flow.
+          await AppStore.instance.addRoom(SavedRoom(
+            roomId: s.room!.roomId,
+            ownerToken: s.room!.ownerToken,
+            name: s.effectiveRoomName,
+            ssid: s.ssid,
+            serverHost: s.server.host,
+            serverPort: s.server.port,
+            createdAt: DateTime.now(),
+          ));
+        } else {
+          // Added a device to an existing room — record which WiFi it's on.
+          await AppStore.instance.addRoom(SavedRoom(
+            roomId: target.roomId,
+            ownerToken: target.ownerToken,
+            name: target.name,
+            ssid: s.ssid,
+            serverHost: target.serverHost,
+            serverPort: target.serverPort,
+            createdAt: target.createdAt,
+          ));
+        }
       }
       if (!mounted) return;
       if (online) {

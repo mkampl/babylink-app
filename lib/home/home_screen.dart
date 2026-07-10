@@ -4,7 +4,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../monitor/monitor_screen.dart';
-import '../setup/screens/welcome_screen.dart';
+import '../server/babylink_server.dart';
+import '../setup/screens/scan_screen.dart';
+import '../setup/setup_session.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
 import '../widgets/hero_badge.dart';
@@ -31,9 +33,55 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _rooms = rooms);
   }
 
-  Future<void> _startSetup() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WelcomeScreen()));
-    _load(); // a new room may have been created
+  /// Create a room (name only — the server makes the id), like the web. Adding
+  /// a device is a separate step from the room's card.
+  Future<void> _createRoom() async {
+    final controller = TextEditingController(text: 'Nursery');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create a room'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Room name', hintText: 'Nursery'),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Create')),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    try {
+      const server = BabyLinkServer();
+      final room = await server.createRoom(name);
+      await AppStore.instance.addRoom(SavedRoom(
+        roomId: room.roomId,
+        ownerToken: room.ownerToken,
+        name: name,
+        ssid: '', // no device yet
+        serverHost: server.host,
+        serverPort: server.port,
+        createdAt: DateTime.now(),
+      ));
+      _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Couldn’t create the room. Check your connection.')));
+      }
+    }
+  }
+
+  /// Provision a BabyLink device into an existing room (the BLE wizard).
+  Future<void> _addDevice(SavedRoom r) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ScanScreen(session: SetupSession(targetRoom: r)),
+    ));
+    _load();
   }
 
   /// Add a room you already have (paste a link or 32-char room id). Lets a
@@ -149,9 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: (rooms != null && rooms.isNotEmpty)
           ? FloatingActionButton.extended(
-              onPressed: _startSetup,
+              onPressed: _createRoom,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Add device'),
+              label: const Text('Create room'),
             )
           : null,
       body: rooms == null
@@ -170,6 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onShare: () => _share(rooms[i]),
                       onCopy: () => _copy(rooms[i]),
                       onOpen: () => _open(rooms[i]),
+                      onAddDevice: () => _addDevice(rooms[i]),
                       onDelete: () => _delete(rooms[i]),
                     ),
                   ),
@@ -187,12 +236,12 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const HeroBadge(emoji: '👶', size: 140),
           Gap.hXl,
-          Text('No devices yet', textAlign: TextAlign.center, style: t.headlineMedium),
+          Text('No rooms yet', textAlign: TextAlign.center, style: t.headlineMedium),
           Gap.hSm,
-          Text('Set up your first BabyLink to start monitoring.',
+          Text('Create a room, then add your BabyLink device to it.',
               textAlign: TextAlign.center, style: t.bodyLarge),
           Gap.hXl,
-          PrimaryButton('Set up a device', icon: Icons.add_rounded, onPressed: _startSetup),
+          PrimaryButton('Create a room', icon: Icons.add_rounded, onPressed: _createRoom),
           Gap.hSm,
           TextButton(onPressed: _addByLink, child: const Text('I already have a room link')),
         ],
@@ -203,13 +252,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _RoomCard extends StatelessWidget {
   final SavedRoom room;
-  final VoidCallback onListen, onShare, onCopy, onOpen, onDelete;
+  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onDelete;
   const _RoomCard({
     required this.room,
     required this.onListen,
     required this.onShare,
     required this.onCopy,
     required this.onOpen,
+    required this.onAddDevice,
     required this.onDelete,
   });
 
@@ -217,6 +267,12 @@ class _RoomCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
+    // A room we provisioned via BLE records its WiFi. A room we own (created it,
+    // so we hold the token) but haven't provisioned yet expects a device next —
+    // make "Add a device" its primary action. A room added by link (no token,
+    // someone else's) is there to listen to.
+    final hasDevice = room.ssid.isNotEmpty;
+    final needsDevice = !hasDevice && room.ownerToken != null;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
@@ -238,15 +294,18 @@ class _RoomCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(room.name, style: t.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text('on ${room.ssid.isEmpty ? "WiFi" : room.ssid}',
+                      Text(hasDevice ? 'on ${room.ssid}' : (needsDevice ? 'No device yet' : 'Shared room'),
                           style: t.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: onDelete,
+                PopupMenuButton<String>(
                   icon: const Icon(Icons.more_horiz_rounded),
-                  tooltip: 'Remove',
+                  onSelected: (v) => v == 'add' ? onAddDevice() : onDelete(),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'add', child: Text('Add a device')),
+                    PopupMenuItem(value: 'remove', child: Text('Remove room')),
+                  ],
                 ),
               ],
             ),
@@ -270,12 +329,19 @@ class _RoomCard extends StatelessWidget {
               ),
             ),
             Gap.hMd,
-            FilledButton.icon(
-              onPressed: onListen,
-              icon: const Icon(Icons.hearing_rounded),
-              label: const Text('Listen'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-            ),
+            needsDevice
+                ? FilledButton.icon(
+                    onPressed: onAddDevice,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add a device'),
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  )
+                : FilledButton.icon(
+                    onPressed: onListen,
+                    icon: const Icon(Icons.hearing_rounded),
+                    label: const Text('Listen'),
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  ),
             Gap.hMd,
             Row(
               children: [
