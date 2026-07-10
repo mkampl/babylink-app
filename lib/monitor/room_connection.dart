@@ -5,41 +5,38 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../store/app_store.dart';
+import 'baby_stream.dart';
 import 'pcm_player.dart';
 
 enum LinkState { connecting, listening, reconnecting }
 
-/// Health of the audio, mirroring the web app's honest never-silent contract.
-enum AudioHealth { live, quiet, stalled }
-
-/// Connects to a room over Socket.IO as a parent, plays the ESP's PCM audio,
-/// and reports honest status. One instance per open monitor.
+/// Connects to a room over Socket.IO as a parent and plays EVERY baby's PCM
+/// audio, mixed, with per-baby meter/health/controls — matching the web app's
+/// multi-baby monitor. One instance per open monitor.
 class RoomConnection extends ChangeNotifier {
   final SavedRoom room;
   RoomConnection(this.room);
 
-  final PcmPlayer _player = PcmPlayer();
+  final PcmMixer _mixer = PcmMixer();
   io.Socket? _socket;
   Timer? _watchdog;
 
   LinkState link = LinkState.connecting;
-  AudioHealth health = AudioHealth.quiet;
-  String babyName = '';
-  double level = 0; // 0..1 peak of the latest audio
-  double get volume => _player.volume;
-  double sensitivity = 1.0;
+  final Map<String, BabyStream> _babies = {};
+  final Set<String> _ackedStalls = {}; // babies whose alarm the user silenced
 
-  // Auto-listen (VOX) is ALWAYS on by default (like the web): mute during
-  // quiet, unmute on sound. manualMute is a hard override for full silence.
-  bool manualMute = false;
-  bool alarmAcked = false; // user silenced the connection-lost beep
-  static const _voxHoldMs = 4000; // stay unmuted this long after the last sound
-  static const _soundThreshold = 0.12; // level that counts as real sound (not ambient)
-  bool get muted => _player.muted; // effective (post-VOX) mute, for the UI
-  bool get alarming => health == AudioHealth.stalled;
+  static const _voxHoldMs = 4000;
+  static const _soundThreshold = 0.12;
 
-  DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
+  List<BabyStream> get babies {
+    final list = _babies.values.toList();
+    list.sort((a, b) => a.id.compareTo(b.id)); // stable order
+    return list;
+  }
+
+  bool get anyAlarming => _babies.values.any((b) => b.health == AudioHealth.stalled);
+  bool get anyUnackedAlarm =>
+      _babies.values.any((b) => b.health == AudioHealth.stalled && !_ackedStalls.contains(b.id));
 
   String get _url {
     final scheme = room.serverPort == 443 ? 'https' : 'http';
@@ -48,15 +45,10 @@ class RoomConnection extends ChangeNotifier {
   }
 
   Future<void> start() async {
-    await _player.start();
-    babyName = room.name;
+    await _mixer.start();
     final socket = io.io(
       _url,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .setReconnectionDelay(1000)
-          .build(),
+      io.OptionBuilder().setTransports(['websocket']).disableAutoConnect().setReconnectionDelay(1000).build(),
     );
     _socket = socket;
 
@@ -70,6 +62,7 @@ class RoomConnection extends ChangeNotifier {
       notifyListeners();
     });
     socket.on('participant-joined', (_) => notifyListeners());
+    socket.on('participant-left', _onParticipantLeft);
     socket.on('esp32-audio', _onAudio);
     socket.onDisconnect((_) {
       link = LinkState.reconnecting;
@@ -84,103 +77,116 @@ class RoomConnection extends ChangeNotifier {
     _watchdog = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
-  int _frames = 0;
   void _onAudio(dynamic data) {
-    if (data is! Map) {
-      if (_frames++ < 3) debugPrint('[babylink] esp32-audio not a Map: ${data.runtimeType}');
-      return;
-    }
+    if (data is! Map) return;
+    final id = (data['fromId'] ?? 'baby').toString();
     final name = data['fromName']?.toString();
-    if (name != null && name.isNotEmpty) babyName = name;
+
+    var baby = _babies[id];
+    if (baby == null) {
+      baby = BabyStream(id, (name == null || name.isEmpty) ? 'Baby' : name);
+      _babies[id] = baby;
+      _mixer.addSource(id);
+      _mixer.setVolume(id, baby.volume);
+      _applyMute(baby);
+    } else if (name != null && name.isNotEmpty) {
+      baby.name = name;
+    }
 
     final bytes = _extractBytes(data['audio']);
-    if (_frames++ < 3) {
-      debugPrint('[babylink] audio field=${data['audio'].runtimeType} '
-          'bytes=${bytes?.lengthInBytes} sr=${data['sampleRate']}');
-    }
     if (bytes == null || bytes.isEmpty) return;
-    // Interpret as little-endian int16 PCM.
-    final aligned = (bytes.lengthInBytes.isOdd) ? bytes.sublist(0, bytes.length - 1) : bytes;
+    final aligned = bytes.lengthInBytes.isOdd ? bytes.sublist(0, bytes.length - 1) : bytes;
     final samples = aligned.buffer.asInt16List(aligned.offsetInBytes, aligned.length ~/ 2);
+    _mixer.enqueue(id, samples);
 
-    _player.enqueue(samples);
-
-    // Meter: peak amplitude (0..1), scaled by sensitivity for detection.
     var peak = 0;
     for (final s in samples) {
       final a = s < 0 ? -s : s;
       if (a > peak) peak = a;
     }
     final now = DateTime.now();
-    _lastFrame = now;
-    final lvl = (peak / 32768.0) * sensitivity;
-    level = lvl.clamp(0.0, 1.0);
-    if (level > _soundThreshold) _lastEnergy = now;
-    _applyMute(); // VOX unmutes immediately on sound
+    baby.lastFrame = now;
+    baby.level = ((peak / 32768.0) * baby.sensitivity).clamp(0.0, 1.0);
+    if (baby.level > _soundThreshold) baby.lastEnergy = now;
+    _applyMute(baby);
     notifyListeners();
   }
 
-  /// Effective mute: a hard manual mute wins; otherwise auto-listen mutes
-  /// during quiet and unmutes on recent sound (Sensitivity tunes the trigger).
-  void _applyMute() {
-    final quietFor = DateTime.now().difference(_lastEnergy).inMilliseconds;
-    _player.muted = manualMute || (quietFor > _voxHoldMs);
+  void _onParticipantLeft(dynamic data) {
+    if (data is Map) {
+      final id = data['socketId']?.toString();
+      if (id != null && _babies.containsKey(id)) {
+        _babies.remove(id);
+        _mixer.removeSource(id);
+        _ackedStalls.remove(id);
+      }
+    }
+    notifyListeners();
   }
 
-  /// The 'audio' payload can arrive as raw bytes or a JSON-serialized Buffer.
+  void _applyMute(BabyStream baby) {
+    final quietFor = DateTime.now().difference(baby.lastEnergy).inMilliseconds;
+    baby.effectiveMuted = baby.manualMute || (quietFor > _voxHoldMs);
+    _mixer.setMuted(baby.id, baby.effectiveMuted);
+  }
+
   Uint8List? _extractBytes(dynamic audio) {
     if (audio is Uint8List) return audio;
     if (audio is List<int>) return Uint8List.fromList(audio);
     if (audio is ByteBuffer) return audio.asUint8List();
-    if (audio is Map && audio['data'] is List) {
-      return Uint8List.fromList(List<int>.from(audio['data']));
-    }
+    if (audio is Map && audio['data'] is List) return Uint8List.fromList(List<int>.from(audio['data']));
     return null;
   }
 
   void _tick() {
     final now = DateTime.now();
-    final sinceFrame = now.difference(_lastFrame).inMilliseconds;
-    final sinceEnergy = now.difference(_lastEnergy).inMilliseconds;
-    final prev = health;
-    if (sinceFrame > 8000) {
-      health = AudioHealth.stalled; // no audio arriving at all
-    } else if (sinceEnergy < 900) {
-      health = AudioHealth.live;
-    } else {
-      health = AudioHealth.quiet;
+    for (final baby in _babies.values) {
+      final sinceFrame = now.difference(baby.lastFrame).inMilliseconds;
+      final sinceEnergy = now.difference(baby.lastEnergy).inMilliseconds;
+      if (sinceFrame > 8000) {
+        baby.health = AudioHealth.stalled;
+      } else if (sinceEnergy < 900) {
+        baby.health = AudioHealth.live;
+      } else {
+        baby.health = AudioHealth.quiet;
+      }
+      if (baby.level > 0 && sinceFrame > 400) baby.level = 0;
+      if (baby.health != AudioHealth.stalled) _ackedStalls.remove(baby.id);
+      _applyMute(baby);
     }
-    if (level > 0 && sinceFrame > 400) {
-      level = 0; // decay the meter when frames pause
+    // Room-level audible alarm: beep while any baby is stalled and un-silenced.
+    _mixer.alarm = anyUnackedAlarm;
+    notifyListeners();
+  }
+
+  // ---- Per-baby controls ----
+  void setBabyMuted(String id, bool m) {
+    final b = _babies[id];
+    if (b == null) return;
+    b.manualMute = m;
+    _applyMute(b);
+    notifyListeners();
+  }
+
+  void setBabyVolume(String id, double v) {
+    final b = _babies[id];
+    if (b == null) return;
+    b.volume = v.clamp(0.0, 1.0);
+    _mixer.setVolume(id, b.volume);
+    notifyListeners();
+  }
+
+  void setBabySensitivity(String id, double s) {
+    _babies[id]?.sensitivity = s.clamp(0.5, 3.0);
+    notifyListeners();
+  }
+
+  /// Silence the connection-lost beep for all currently-stalled babies.
+  void silenceAlarms() {
+    for (final b in _babies.values) {
+      if (b.health == AudioHealth.stalled) _ackedStalls.add(b.id);
     }
-    // Reset the ack once audio is back, so the NEXT disconnect beeps again.
-    if (health != AudioHealth.stalled) alarmAcked = false;
-    // Audible connection-lost alert: beep until the user acknowledges it.
-    _player.alarm = health == AudioHealth.stalled && !alarmAcked;
-    _applyMute();
-    if (prev != health || true) notifyListeners();
-  }
-
-  void setManualMute(bool m) {
-    manualMute = m;
-    _applyMute();
-    notifyListeners();
-  }
-
-  /// Silence the connection-lost beep (the state stays shown until it recovers).
-  void acknowledgeAlarm() {
-    alarmAcked = true;
-    _player.alarm = false;
-    notifyListeners();
-  }
-
-  void setVolume(double v) {
-    _player.volume = v.clamp(0.0, 1.0);
-    notifyListeners();
-  }
-
-  void setSensitivity(double s) {
-    sensitivity = s.clamp(0.5, 3.0);
+    _mixer.alarm = false;
     notifyListeners();
   }
 
@@ -190,7 +196,7 @@ class RoomConnection extends ChangeNotifier {
     try {
       _socket?.dispose();
     } catch (_) {}
-    _player.stop();
+    _mixer.stop();
     super.dispose();
   }
 }
