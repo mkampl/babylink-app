@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../monitor/monitor_screen.dart';
 import '../setup/screens/welcome_screen.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
@@ -35,6 +36,57 @@ class _HomeScreenState extends State<HomeScreen> {
     _load(); // a new room may have been created
   }
 
+  /// Add a room you already have (paste a link or 32-char room id). Lets a
+  /// second phone join to listen without running setup.
+  Future<void> _addByLink() async {
+    final controller = TextEditingController();
+    final nameController = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add a room'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Room link or ID'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name (optional)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Add')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final match = RegExp(r'[0-9a-fA-F]{32}').firstMatch(controller.text);
+    if (match == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('That doesn’t look like a BabyLink room link')));
+      }
+      return;
+    }
+    await AppStore.instance.addRoom(SavedRoom(
+      roomId: match.group(0)!.toLowerCase(),
+      ownerToken: null,
+      name: nameController.text.trim().isEmpty ? 'BabyLink' : nameController.text.trim(),
+      ssid: '',
+      serverHost: 'babylink.itvoodoo.at',
+      serverPort: 443,
+      createdAt: DateTime.now(),
+    ));
+    _load();
+  }
+
   void _share(SavedRoom r) {
     SharePlus.instance.share(ShareParams(
       text: 'Join ${r.name} on BabyLink 👶\nOpen this link and choose Parent (to listen) or Baby (to add a camera/mic):\n${r.roomLink}',
@@ -47,6 +99,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
     }
+  }
+
+  void _listen(SavedRoom r) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => MonitorScreen(room: r)));
   }
 
   Future<void> _open(SavedRoom r) async {
@@ -83,6 +139,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('BabyLink'),
         titleTextStyle: Theme.of(context).textTheme.headlineSmall,
+        actions: [
+          IconButton(
+            onPressed: _addByLink,
+            icon: const Icon(Icons.add_link_rounded),
+            tooltip: 'Add a room by link',
+          ),
+        ],
       ),
       floatingActionButton: (rooms != null && rooms.isNotEmpty)
           ? FloatingActionButton.extended(
@@ -103,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     separatorBuilder: (_, __) => Gap.hMd,
                     itemBuilder: (_, i) => _RoomCard(
                       room: rooms[i],
+                      onListen: () => _listen(rooms[i]),
                       onShare: () => _share(rooms[i]),
                       onCopy: () => _copy(rooms[i]),
                       onOpen: () => _open(rooms[i]),
@@ -129,6 +193,8 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center, style: t.bodyLarge),
           Gap.hXl,
           PrimaryButton('Set up a device', icon: Icons.add_rounded, onPressed: _startSetup),
+          Gap.hSm,
+          TextButton(onPressed: _addByLink, child: const Text('I already have a room link')),
         ],
       ),
     );
@@ -137,9 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _RoomCard extends StatelessWidget {
   final SavedRoom room;
-  final VoidCallback onShare, onCopy, onOpen, onDelete;
+  final VoidCallback onListen, onShare, onCopy, onOpen, onDelete;
   const _RoomCard({
     required this.room,
+    required this.onListen,
     required this.onShare,
     required this.onCopy,
     required this.onOpen,
@@ -201,6 +268,13 @@ class _RoomCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            Gap.hMd,
+            FilledButton.icon(
+              onPressed: onListen,
+              icon: const Icon(Icons.hearing_rounded),
+              label: const Text('Listen'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             ),
             Gap.hMd,
             Row(
