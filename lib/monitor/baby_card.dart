@@ -31,17 +31,20 @@ class BabyCard extends StatelessWidget {
 
     // A placeholder for the room's expected device (no audio yet): we're
     // already connected to the room — just waiting for a device. Never an alarm.
+    final crying = baby.health == AudioHealth.live && baby.level > 0.5;
     final (statusText, statusColor) = baby.pending
         ? (baby.waitedTooLong
             ? ('No device yet — is it on?', muted)
             : ('Waiting for a device', muted))
-        : switch (baby.health) {
-            AudioHealth.stalled => ('No audio — reconnecting', s.danger),
-            _ when baby.mode == ListenMode.muted => ('Muted', muted),
-            _ when mutedNow => ('Auto-muted (quiet)', muted), // VOX has it silent
-            AudioHealth.live => baby.level > 0.5 ? ('Crying!', s.danger) : ('Listening', s.success),
-            AudioHealth.quiet => ('Listening', s.success),
-          };
+        : baby.health == AudioHealth.stalled
+            ? ('No audio — reconnecting', s.danger)
+            : crying // overrides mute — shown (and heard) even when muted
+                ? ('Crying!', s.danger)
+                : baby.mode == ListenMode.muted
+                    ? ('Muted', muted)
+                    : mutedNow
+                        ? ('Auto-muted (quiet)', muted) // VOX has it silent
+                        : ('Listening', s.success);
 
     return Card(
       child: Padding(

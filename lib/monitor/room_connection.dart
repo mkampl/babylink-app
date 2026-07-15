@@ -229,7 +229,9 @@ class RoomConnection extends ChangeNotifier {
       mode: baby.mode,
       kind: baby.kind,
       quietForMs: quietFor,
+      level: baby.level,
       voxHoldMs: _voxHoldMs,
+      cryThreshold: _cryThreshold,
     );
     if (baby.kind == BabyKind.webrtc) {
       _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);

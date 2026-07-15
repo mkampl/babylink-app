@@ -16,12 +16,19 @@ enum ListenMode { auto, listen, muted }
 /// mixer, socket or WebRTC engine. WebRTC has no reliable receive-side level, so
 /// in [ListenMode.auto] it stays OPEN (a monitor must never self-mute blindly);
 /// PCM has real per-sample levels, so auto = VOX by quiet duration.
+///
+/// SAFETY: a crying baby (level over [cryThreshold]) is heard even through a
+/// hard mute — a muted monitor must never swallow a cry. Matches the web app,
+/// where crying (RED) overrides a manual mute.
 bool voxEffectiveMuted({
   required ListenMode mode,
   required BabyKind kind,
   required int quietForMs,
+  required double level,
   int voxHoldMs = 4000,
+  double cryThreshold = 0.5,
 }) {
+  if (level > cryThreshold) return false; // crying overrides any mute
   switch (mode) {
     case ListenMode.muted:
       return true;
