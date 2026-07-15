@@ -5,6 +5,34 @@ enum AudioHealth { live, quiet, stalled }
 /// and browsers stream over WebRTC (the web app's only baby transport).
 enum BabyKind { pcm, webrtc }
 
+/// What the user wants to hear from a baby, overriding or following VOX:
+/// - [auto]   follow the sound: PCM auto-mutes when quiet, opens on sound.
+/// - [listen] force audible — "listen in" even while it's quiet (VOX off).
+/// - [muted]  force silent — a hard mute.
+enum ListenMode { auto, listen, muted }
+
+/// Pure decision for whether a baby's audio should be muted right now. Split out
+/// so the mute policy (and the ESP VOX threshold) is unit-testable without a
+/// mixer, socket or WebRTC engine. WebRTC has no reliable receive-side level, so
+/// in [ListenMode.auto] it stays OPEN (a monitor must never self-mute blindly);
+/// PCM has real per-sample levels, so auto = VOX by quiet duration.
+bool voxEffectiveMuted({
+  required ListenMode mode,
+  required BabyKind kind,
+  required int quietForMs,
+  int voxHoldMs = 4000,
+}) {
+  switch (mode) {
+    case ListenMode.muted:
+      return true;
+    case ListenMode.listen:
+      return false;
+    case ListenMode.auto:
+      if (kind == BabyKind.webrtc) return false;
+      return quietForMs > voxHoldMs;
+  }
+}
+
 /// Per-baby state in a room: name, meter level, health, and independent
 /// controls. For [BabyKind.pcm] the audio buffer lives in the shared PcmMixer;
 /// for [BabyKind.webrtc] the native engine plays it and WebRtcReceiver owns it.
@@ -24,8 +52,8 @@ class BabyStream {
   DateTime lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
 
-  bool manualMute = false; // hard mute (overrides auto-listen)
-  bool effectiveMuted = true; // manual OR auto-listen-quiet
+  ListenMode mode = ListenMode.auto; // auto (VOX) / listen (force on) / muted
+  bool effectiveMuted = true; // what's actually playing right now
   double volume = 1.0;
   double sensitivity = 1.0;
 

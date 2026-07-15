@@ -224,18 +224,18 @@ class RoomConnection extends ChangeNotifier {
   }
 
   void _applyMute(BabyStream baby) {
-    if (baby.kind == BabyKind.webrtc) {
-      // WebRTC has no reliable receive-side level (getStats audioLevel is absent
-      // and totalAudioEnergy is flaky), so VOX auto-muting could silence a live
-      // baby. Fail open: keep audible unless the user manually mutes.
-      baby.effectiveMuted = baby.manualMute;
-      _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
-      return;
-    }
-    // PCM (ESP): real per-sample levels → full VOX auto-listen.
     final quietFor = DateTime.now().difference(baby.lastEnergy).inMilliseconds;
-    baby.effectiveMuted = baby.manualMute || (quietFor > _voxHoldMs);
-    _mixer.setMuted(baby.id, baby.effectiveMuted);
+    baby.effectiveMuted = voxEffectiveMuted(
+      mode: baby.mode,
+      kind: baby.kind,
+      quietForMs: quietFor,
+      voxHoldMs: _voxHoldMs,
+    );
+    if (baby.kind == BabyKind.webrtc) {
+      _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
+    } else {
+      _mixer.setMuted(baby.id, baby.effectiveMuted);
+    }
   }
 
   Uint8List? _extractBytes(dynamic audio) {
@@ -317,10 +317,12 @@ class RoomConnection extends ChangeNotifier {
   }
 
   // ---- Per-baby controls ----
-  void setBabyMuted(String id, bool m) {
+  void setBabyMode(String id, ListenMode mode) {
     final b = _babies[id];
     if (b == null) return;
-    b.manualMute = m;
+    b.mode = mode;
+    // "Listen in" should be instant: a freshly-opened PCM source has an empty
+    // jitter buffer, so there's nothing stale to clear — the next frame plays.
     _applyMute(b);
     notifyListeners();
   }
