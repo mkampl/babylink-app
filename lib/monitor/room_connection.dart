@@ -30,6 +30,7 @@ class RoomConnection extends ChangeNotifier {
 
   LinkState link = LinkState.connecting;
   final Map<String, BabyStream> _babies = {};
+  final Map<String, ({int level, bool charging})> _battery = {}; // by id, may pre-date the baby
   final Set<String> _ackedStalls = {}; // babies whose alarm the user silenced
   final AlertTracker _alerts = AlertTracker(cryThreshold: _cryThreshold, cryRearmMs: _cryRearmMs);
 
@@ -92,11 +93,21 @@ class RoomConnection extends ChangeNotifier {
     });
     socket.on('room-state', (data) {
       link = LinkState.listening;
-      _kickBabies(data is Map ? data['participants'] : null);
+      final parts = data is Map ? data['participants'] : null;
+      _seedBattery(parts);
+      _kickBabies(parts);
       notifyListeners();
     });
+    socket.on('baby-status', (data) {
+      if (data is! Map) return;
+      final id = data['socketId']?.toString();
+      _setBattery(id, (data['battery'] as num?)?.toInt(), data['charging'] == true);
+    });
     socket.on('participant-joined', (data) {
-      if (data is Map && data['role'] == 'baby') _kickBaby(data['socketId']?.toString());
+      if (data is Map) {
+        _seedBattery(data['participants']);
+        if (data['role'] == 'baby') _kickBaby(data['socketId']?.toString());
+      }
       notifyListeners();
     });
     socket.on('participant-left', _onParticipantLeft);
@@ -124,6 +135,36 @@ class RoomConnection extends ChangeNotifier {
     }
   }
 
+  /// Seed per-baby battery from a participants list (room-state / joined), so a
+  /// value that arrived before the baby's audio isn't lost.
+  void _seedBattery(dynamic participants) {
+    if (participants is! List) return;
+    for (final p in participants) {
+      if (p is Map && p['battery'] != null) {
+        _setBattery(p['socketId']?.toString(), (p['battery'] as num?)?.toInt(), p['charging'] == true);
+      }
+    }
+  }
+
+  void _setBattery(String? id, int? level, bool charging) {
+    if (id == null || level == null) return;
+    _battery[id] = (level: level, charging: charging);
+    final baby = _babies[id];
+    if (baby != null) {
+      baby.battery = level;
+      baby.charging = charging;
+      notifyListeners();
+    }
+  }
+
+  void _applyBattery(BabyStream b) {
+    final bat = _battery[b.id];
+    if (bat != null) {
+      b.battery = bat.level;
+      b.charging = bat.charging;
+    }
+  }
+
   void _kickBaby(String? socketId) {
     if (socketId == null) return;
     if (WebRtcReceiver.isWebrtcBaby(socketId) && _webrtc?.has(socketId) != true) {
@@ -138,6 +179,7 @@ class RoomConnection extends ChangeNotifier {
     if (baby == null) {
       baby = BabyStream(id, name.isEmpty ? 'Baby' : name, kind: BabyKind.webrtc);
       _babies[id] = baby;
+      _applyBattery(baby);
     } else {
       baby.kind = BabyKind.webrtc;
       if (name.isNotEmpty) baby.name = name;
@@ -172,6 +214,7 @@ class RoomConnection extends ChangeNotifier {
     if (baby == null) {
       baby = BabyStream(id, (name == null || name.isEmpty) ? 'Baby' : name);
       _babies[id] = baby;
+      _applyBattery(baby);
       _mixer.addSource(id);
       _mixer.setVolume(id, baby.volume);
       _applyMute(baby);

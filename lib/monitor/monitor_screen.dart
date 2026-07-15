@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../battery_status.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
 import '../widgets/hero_badge.dart';
@@ -20,6 +23,9 @@ class MonitorScreen extends StatefulWidget {
 class _MonitorScreenState extends State<MonitorScreen> {
   late final RoomConnection _conn;
   bool _batteryOk = true; // hide the reliability tip until we know otherwise
+  final BatteryReader _batteryReader = BatteryReader();
+  BatteryStatus? _ownBattery; // this (parent) phone's own charge
+  Timer? _ownBatteryTimer;
 
   @override
   void initState() {
@@ -30,6 +36,13 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _conn.start();
     WakelockPlus.enable();
     _hardenBackground();
+    _pollOwnBattery();
+    _ownBatteryTimer = Timer.periodic(const Duration(seconds: 60), (_) => _pollOwnBattery());
+  }
+
+  Future<void> _pollOwnBattery() async {
+    final b = await _batteryReader.read();
+    if (mounted && b != null) setState(() => _ownBattery = b);
   }
 
   /// Keep the monitor alive when backgrounded: ask the OS to exempt us from
@@ -43,6 +56,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   @override
   void dispose() {
+    _ownBatteryTimer?.cancel();
     WakelockPlus.disable();
     MonitorService.stop();
     _conn.dispose();
@@ -52,7 +66,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.room.name)),
+      appBar: AppBar(
+        title: Text(widget.room.name),
+        actions: [if (_ownBattery != null) _ownBatteryChip(context)],
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: _conn,
@@ -114,6 +131,28 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  /// This phone is the monitor — show its own charge so the parent notices
+  /// their device running low (they're often listening for hours on battery).
+  Widget _ownBatteryChip(BuildContext context) {
+    final b = _ownBattery!;
+    final s = context.status;
+    final color = b.level <= 15 ? s.danger : (b.level <= 30 ? s.warning : null);
+    final icon = b.charging
+        ? Icons.battery_charging_full_rounded
+        : (b.level <= 15 ? Icons.battery_alert_rounded : Icons.battery_full_rounded);
+    return Padding(
+      padding: const EdgeInsets.only(right: Gap.md),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 3),
+          Text('${b.level}%', style: Theme.of(context).textTheme.labelLarge!.copyWith(color: color)),
+        ],
+      ),
     );
   }
 

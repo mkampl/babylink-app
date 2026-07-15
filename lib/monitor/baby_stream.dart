@@ -44,6 +44,9 @@ class BabyStream {
   bool pending = false;
   bool waitedTooLong = false; // grace window passed with still no device
 
+  int? battery; // last self-reported battery %, if the device reports it
+  bool charging = false;
+
   double level = 0; // 0..1 latest peak
   AudioHealth health = AudioHealth.quiet;
   DateTime lastFrame = DateTime.fromMillisecondsSinceEpoch(0);

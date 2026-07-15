@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../battery_status.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
 import '../widgets/hero_badge.dart';
@@ -30,6 +31,8 @@ class _BabyScreenState extends State<BabyScreen> {
   io.Socket? _socket;
   WebRtcBroadcaster? _broadcaster;
   Timer? _levelPoll;
+  Timer? _batteryTimer;
+  final BatteryReader _batteryReader = BatteryReader();
 
   _State _state = _State.starting;
   int _parents = 0;
@@ -82,6 +85,7 @@ class _BabyScreenState extends State<BabyScreen> {
 
     socket.onConnect((_) {
       socket.emit('join', {'roomId': widget.room.roomId, 'role': 'baby', 'userName': 'Phone'});
+      _reportBattery(); // let the parent know our charge right away
     });
     socket.on('room-state', (data) {
       if (data is Map && data['participants'] is List) {
@@ -102,7 +106,18 @@ class _BabyScreenState extends State<BabyScreen> {
     socket.connect();
 
     _levelPoll = Timer.periodic(const Duration(milliseconds: 300), (_) => broadcaster.pollLevel());
+    _batteryTimer = Timer.periodic(const Duration(seconds: 60), (_) => _reportBattery());
     if (mounted) setState(() => _state = _State.streaming);
+  }
+
+  /// Tell the parent our battery so a phone-as-baby that's about to die is
+  /// visible, not a silent outage. Cheap; sent on connect and once a minute.
+  Future<void> _reportBattery() async {
+    final socket = _socket;
+    if (socket == null || !socket.connected) return;
+    final status = await _batteryReader.read();
+    if (status == null) return;
+    socket.emit('baby-status', {'battery': status.level, 'charging': status.charging});
   }
 
   void _toggleMute() {
@@ -115,6 +130,7 @@ class _BabyScreenState extends State<BabyScreen> {
   @override
   void dispose() {
     _levelPoll?.cancel();
+    _batteryTimer?.cancel();
     _broadcaster?.dispose();
     try {
       _socket?.dispose();

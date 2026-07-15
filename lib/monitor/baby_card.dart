@@ -70,6 +70,7 @@ class BabyCard extends StatelessWidget {
                 Expanded(
                   child: Text(baby.name, style: t.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
+                if (baby.battery != null) ...[_battery(context), Gap.wSm],
                 Text(statusText, style: t.labelMedium!.copyWith(color: statusColor)),
               ],
             ),
@@ -95,6 +96,25 @@ class BabyCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// The baby device's self-reported battery — so a phone-as-baby about to die
+  /// is visible, not a silent outage. Low levels go warning/danger coloured.
+  Widget _battery(BuildContext context) {
+    final b = baby.battery!;
+    final s = context.status;
+    final color = b <= 15 ? s.danger : (b <= 30 ? s.warning : Theme.of(context).colorScheme.onSurfaceVariant);
+    final icon = baby.charging
+        ? Icons.battery_charging_full_rounded
+        : (b <= 15 ? Icons.battery_alert_rounded : Icons.battery_full_rounded);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 2),
+        Text('$b%', style: Theme.of(context).textTheme.labelMedium!.copyWith(color: color)),
+      ],
     );
   }
 
