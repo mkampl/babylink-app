@@ -19,6 +19,7 @@ class MonitorScreen extends StatefulWidget {
 
 class _MonitorScreenState extends State<MonitorScreen> {
   late final RoomConnection _conn;
+  bool _batteryOk = true; // hide the reliability tip until we know otherwise
 
   @override
   void initState() {
@@ -28,6 +29,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _conn = RoomConnection(widget.room);
     _conn.start();
     WakelockPlus.enable();
+    _hardenBackground();
+  }
+
+  /// Keep the monitor alive when backgrounded: ask the OS to exempt us from
+  /// battery optimization (Doze), then reflect whether we're protected so the
+  /// user can fix it if they dismissed the dialog.
+  Future<void> _hardenBackground() async {
+    await MonitorService.ensureBatteryExemption();
+    final ok = await MonitorService.isBatteryUnrestricted();
+    if (mounted) setState(() => _batteryOk = ok);
   }
 
   @override
@@ -56,6 +67,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
     return Column(
       children: [
+        // Reliability nudge: without a battery-optimization exemption the OS can
+        // freeze this monitor in the background and a cry goes unheard.
+        if (!_batteryOk) _reliabilityTip(context),
+
         // Room-level alarm banner when any baby dropped.
         if (_conn.anyUnackedAlarm)
           Padding(
@@ -98,6 +113,41 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _reliabilityTip(BuildContext context) {
+    final s = context.status;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: s.warningBg,
+          borderRadius: Radii.rMd,
+          border: Border.all(color: s.warning.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.battery_alert_rounded, color: s.warning, size: 22),
+            Gap.wMd,
+            Expanded(
+              child: Text(
+                'For reliable alerts, allow BabyLink to run unrestricted in the background.',
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: s.warning, height: 1.3),
+              ),
+            ),
+            Gap.wSm,
+            TextButton(
+              onPressed: () async {
+                await MonitorService.openBatterySettings();
+                if (mounted) _hardenBackground(); // re-check when they come back
+              },
+              child: const Text('Fix'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

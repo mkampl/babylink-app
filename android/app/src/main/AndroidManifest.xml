@@ -11,6 +11,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Hold the CPU awake so the socket + audio keep flowing with the screen
+         off, and ask the OS to exempt us from battery optimization (Doze) so a
+         backgrounded monitor is never frozen and cry/disconnect alerts fire. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
     <!-- Audio: route WebRTC (receive) and capture the mic (phone-as-baby). -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>

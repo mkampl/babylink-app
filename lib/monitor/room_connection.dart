@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../store/app_store.dart';
+import 'alert_tracker.dart';
 import 'baby_stream.dart';
+import 'notify_service.dart';
 import 'pcm_player.dart';
 import 'webrtc_receiver.dart';
 
@@ -29,9 +31,12 @@ class RoomConnection extends ChangeNotifier {
   LinkState link = LinkState.connecting;
   final Map<String, BabyStream> _babies = {};
   final Set<String> _ackedStalls = {}; // babies whose alarm the user silenced
+  final AlertTracker _alerts = AlertTracker(cryThreshold: _cryThreshold, cryRearmMs: _cryRearmMs);
 
   static const _voxHoldMs = 4000;
   static const _soundThreshold = 0.12;
+  static const _cryThreshold = 0.5; // matches the card's "Crying!" line
+  static const _cryRearmMs = 6000; // must be quiet this long before we alert again
   static const _webrtcGain = 8.0; // WebRTC audioLevel (0..1 RMS) → meter scale
   static const _pendingId = '__pending__'; // the expected-device placeholder
   static const _connectGraceSec = 12; // no device by now → alarm, don't sit silent
@@ -56,6 +61,7 @@ class RoomConnection extends ChangeNotifier {
 
   Future<void> start() async {
     _startedAt = DateTime.now();
+    await NotifyService.init(); // local cry/disconnect alerts, no server needed
     // Show the room's expected device right away so a device that's already
     // offline surfaces (and alarms) instead of an empty "waiting" screen.
     _babies[_pendingId] = BabyStream(_pendingId, room.name)
@@ -255,6 +261,7 @@ class RoomConnection extends ChangeNotifier {
       }
       if (baby.level > 0 && sinceFrame > 400) baby.level = 0;
       if (baby.health != AudioHealth.stalled) _ackedStalls.remove(baby.id);
+      _checkNotify(baby, now);
       _applyMute(baby);
     }
 
@@ -282,6 +289,31 @@ class RoomConnection extends ChangeNotifier {
     if (alarm) _ensureMixer();
     _mixer.alarm = alarm;
     notifyListeners();
+  }
+
+  /// Fire (and later clear) local notifications on the two events a parent must
+  /// never miss: a baby crying, and a device dropping. Edge-triggered via sets
+  /// so a continuous cry or a lasting outage alerts once, not every second.
+  void _checkNotify(BabyStream baby, DateTime now) {
+    final events = _alerts.update(
+      id: baby.id,
+      stalled: baby.health == AudioHealth.stalled,
+      live: baby.health == AudioHealth.live,
+      level: baby.level,
+      quietForMs: now.difference(baby.lastEnergy).inMilliseconds,
+    );
+    for (final e in events) {
+      switch (e) {
+        case AlertEvent.offline:
+          NotifyService.disconnected(baby.id, baby.name);
+        case AlertEvent.online:
+          NotifyService.clearDisconnected(baby.id);
+        case AlertEvent.cryStart:
+          NotifyService.crying(baby.id, baby.name);
+        case AlertEvent.cryStop:
+          NotifyService.clearCry(baby.id);
+      }
+    }
   }
 
   // ---- Per-baby controls ----
@@ -313,7 +345,10 @@ class RoomConnection extends ChangeNotifier {
   /// Silence the connection-lost beep for all currently-stalled babies.
   void silenceAlarms() {
     for (final b in _babies.values) {
-      if (b.health == AudioHealth.stalled) _ackedStalls.add(b.id);
+      if (b.health == AudioHealth.stalled) {
+        _ackedStalls.add(b.id);
+        NotifyService.clearDisconnected(b.id); // acknowledged — drop the heads-up too
+      }
     }
     _mixer.alarm = false;
     notifyListeners();
@@ -328,6 +363,7 @@ class RoomConnection extends ChangeNotifier {
       _socket?.dispose();
     } catch (_) {}
     _mixer.stop();
+    NotifyService.clearAll(); // leaving the monitor clears its alerts
     super.dispose();
   }
 }

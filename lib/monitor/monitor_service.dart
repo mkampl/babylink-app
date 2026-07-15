@@ -40,4 +40,22 @@ class MonitorService {
       await FlutterForegroundTask.stopService();
     }
   }
+
+  /// True once the OS has exempted us from battery optimization (Doze). Without
+  /// this the system can freeze a backgrounded monitor and a cry goes unheard.
+  static Future<bool> isBatteryUnrestricted() =>
+      FlutterForegroundTask.isIgnoringBatteryOptimizations;
+
+  /// Ask for the exemption if we don't have it. The system dialog only appears
+  /// while it isn't granted, so this is safe to call on every monitor start.
+  static Future<void> ensureBatteryExemption() async {
+    if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
+      await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+    }
+  }
+
+  /// Open the system battery-optimization screen (fallback when the user
+  /// dismissed the dialog, and the route to OEM "unrestricted" settings).
+  static Future<void> openBatterySettings() =>
+      FlutterForegroundTask.openIgnoreBatteryOptimizationSettings();
 }
