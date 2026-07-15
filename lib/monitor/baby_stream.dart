@@ -5,39 +5,29 @@ enum AudioHealth { live, quiet, stalled }
 /// and browsers stream over WebRTC (the web app's only baby transport).
 enum BabyKind { pcm, webrtc }
 
-/// What the user wants to hear from a baby, overriding or following VOX:
-/// - [auto]   follow the sound: PCM auto-mutes when quiet, opens on sound.
-/// - [listen] force audible — "listen in" even while it's quiet (VOX off).
-/// - [muted]  force silent — a hard mute.
-enum ListenMode { auto, listen, muted }
-
-/// Pure decision for whether a baby's audio should be muted right now. Split out
-/// so the mute policy (and the ESP VOX threshold) is unit-testable without a
-/// mixer, socket or WebRTC engine. WebRTC has no reliable receive-side level, so
-/// in [ListenMode.auto] it stays OPEN (a monitor must never self-mute blindly);
-/// PCM has real per-sample levels, so auto = VOX by quiet duration.
+/// Pure decision for whether a baby's audio should be muted right now. The base
+/// state is always AUTO (VOX): the buttons don't latch — they set short holds
+/// that expire back to auto. Split out so the policy is unit-testable without a
+/// mixer, socket or WebRTC engine.
 ///
-/// SAFETY: a crying baby (level over [cryThreshold]) is heard even through a
-/// hard mute — a muted monitor must never swallow a cry. Matches the web app,
-/// where crying (RED) overrides a manual mute.
+/// Priority (highest first):
+/// 1. [listenHold] — crying (RED, held ~10s) OR a manual "listen in" tap →
+///    AUDIBLE. Crying feeds this hold, so a cry is always heard, even through a
+///    manual mute (matches the web, where RED overrides a manual mute).
+/// 2. [muteHold] — a manual "mute" tap (held ~10s) → silent, then back to auto.
+/// 3. base VOX — WebRTC stays OPEN (no reliable receive-side level; a monitor
+///    must never self-mute blindly); PCM mutes once quiet for [voxHoldMs].
 bool voxEffectiveMuted({
-  required ListenMode mode,
   required BabyKind kind,
+  required bool listenHold,
+  required bool muteHold,
   required int quietForMs,
-  required double level,
   int voxHoldMs = 4000,
-  double cryThreshold = 0.5,
 }) {
-  if (level > cryThreshold) return false; // crying overrides any mute
-  switch (mode) {
-    case ListenMode.muted:
-      return true;
-    case ListenMode.listen:
-      return false;
-    case ListenMode.auto:
-      if (kind == BabyKind.webrtc) return false;
-      return quietForMs > voxHoldMs;
-  }
+  if (listenHold) return false;
+  if (muteHold) return true;
+  if (kind == BabyKind.webrtc) return false;
+  return quietForMs > voxHoldMs;
 }
 
 /// Per-baby state in a room: name, meter level, health, and independent
@@ -59,10 +49,16 @@ class BabyStream {
   DateTime lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
 
-  ListenMode mode = ListenMode.auto; // auto (VOX) / listen (force on) / muted
+  // Temporary overrides of the auto (VOX) base — the buttons set these windows
+  // and then it falls back to auto. Crying refreshes [listenHoldUntil] too.
+  DateTime listenHoldUntil = DateTime.fromMillisecondsSinceEpoch(0); // audible until
+  DateTime muteHoldUntil = DateTime.fromMillisecondsSinceEpoch(0); // silent until
   bool effectiveMuted = true; // what's actually playing right now
   double volume = 1.0;
   double sensitivity = 1.0;
+
+  bool listenHoldActive(DateTime now) => now.isBefore(listenHoldUntil);
+  bool muteHoldActive(DateTime now) => now.isBefore(muteHoldUntil);
 
   BabyStream(this.id, this.name, {this.kind = BabyKind.pcm});
 }

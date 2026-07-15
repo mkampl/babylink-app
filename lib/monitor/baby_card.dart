@@ -4,19 +4,21 @@ import '../theme.dart';
 import 'baby_stream.dart';
 
 /// One baby's card in the room monitor: name, live status + level meter, and
-/// independent listen-mode / volume / sensitivity — the per-baby controls the
-/// web has. The mode control makes the auto-listen (VOX) state visible and lets
-/// the user "listen in" (force audio on) or hard-mute, mirroring the web app.
+/// per-baby controls. The base state is always auto-listen (VOX); "Listen in"
+/// and "Mute" are momentary overrides (~10s) that fall back to auto — they don't
+/// latch. A cry overrides everything and is always heard.
 class BabyCard extends StatelessWidget {
   final BabyStream baby;
-  final ValueChanged<ListenMode> onMode;
+  final VoidCallback onListen; // force audible ~10s
+  final VoidCallback onMute; // silence ~10s
   final ValueChanged<double> onVolume;
   final ValueChanged<double> onSensitivity;
 
   const BabyCard({
     super.key,
     required this.baby,
-    required this.onMode,
+    required this.onListen,
+    required this.onMute,
     required this.onVolume,
     required this.onSensitivity,
   });
@@ -26,25 +28,30 @@ class BabyCard extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final s = context.status;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final now = DateTime.now();
     final level = baby.level; // show real activity even while muted
     final mutedNow = baby.effectiveMuted;
+    final crying = baby.health == AudioHealth.live && baby.level > 0.5;
+    final listenActive = baby.listenHoldActive(now);
+    final muteActive = baby.muteHoldActive(now);
 
     // A placeholder for the room's expected device (no audio yet): we're
     // already connected to the room — just waiting for a device. Never an alarm.
-    final crying = baby.health == AudioHealth.live && baby.level > 0.5;
     final (statusText, statusColor) = baby.pending
         ? (baby.waitedTooLong
             ? ('No device yet — is it on?', muted)
             : ('Waiting for a device', muted))
         : baby.health == AudioHealth.stalled
             ? ('No audio — reconnecting', s.danger)
-            : crying // overrides mute — shown (and heard) even when muted
+            : crying
                 ? ('Crying!', s.danger)
-                : baby.mode == ListenMode.muted
-                    ? ('Muted', muted)
-                    : mutedNow
-                        ? ('Auto-muted (quiet)', muted) // VOX has it silent
-                        : ('Listening', s.success);
+                : listenActive
+                    ? ('Listening', s.success) // manual listen-in or crying hold
+                    : muteActive
+                        ? ('Muted', muted)
+                        : mutedNow
+                            ? ('Auto-muted (quiet)', muted) // VOX has it silent
+                            : ('Listening', s.success);
 
     return Card(
       child: Padding(
@@ -80,7 +87,7 @@ class BabyCard extends StatelessWidget {
                 ),
               ),
               Gap.hSm,
-              _modeControl(context),
+              _actions(context, now, listenActive, muteActive),
               Gap.hSm,
               _slider(context, Icons.volume_up_rounded, baby.volume, 0, 1, onVolume),
               _slider(context, Icons.graphic_eq_rounded, baby.sensitivity, 0.5, 3.0, onSensitivity),
@@ -91,27 +98,45 @@ class BabyCard extends StatelessWidget {
     );
   }
 
-  /// Auto (VOX) / Listen in (force audio) / Mute — the current mode is visible,
-  /// so a quiet-muted baby no longer looks the same as a silent one.
-  Widget _modeControl(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<ListenMode>(
-        segments: const [
-          ButtonSegment(value: ListenMode.auto, label: Text('Auto'), icon: Icon(Icons.hearing_rounded)),
-          ButtonSegment(value: ListenMode.listen, label: Text('Listen'), icon: Icon(Icons.volume_up_rounded)),
-          ButtonSegment(value: ListenMode.muted, label: Text('Mute'), icon: Icon(Icons.volume_off_rounded)),
-        ],
-        selected: {baby.mode},
-        showSelectedIcon: false,
-        onSelectionChanged: (sel) => onMode(sel.first),
-        style: ButtonStyle(
-          visualDensity: VisualDensity.compact,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          textStyle: WidgetStatePropertyAll(Theme.of(context).textTheme.labelMedium),
+  /// Two momentary actions. Highlighted with a seconds countdown while their
+  /// hold is active, then they revert — auto-listen (VOX) is the resting state.
+  Widget _actions(BuildContext context, DateTime now, bool listenActive, bool muteActive) {
+    final listenLeft = baby.listenHoldUntil.difference(now).inSeconds + 1;
+    final muteLeft = baby.muteHoldUntil.difference(now).inSeconds + 1;
+    return Row(
+      children: [
+        Expanded(
+          child: _actionButton(
+            context,
+            icon: Icons.volume_up_rounded,
+            label: listenActive ? 'Listening ${listenLeft.clamp(1, 99)}s' : 'Listen in',
+            active: listenActive,
+            onTap: onListen,
+          ),
         ),
-      ),
+        Gap.wSm,
+        Expanded(
+          child: _actionButton(
+            context,
+            icon: Icons.volume_off_rounded,
+            label: muteActive ? 'Muted ${muteLeft.clamp(1, 99)}s' : 'Mute',
+            active: muteActive,
+            onTap: onMute,
+          ),
+        ),
+      ],
     );
+  }
+
+  Widget _actionButton(BuildContext context,
+      {required IconData icon, required String label, required bool active, required VoidCallback onTap}) {
+    final style = ButtonStyle(
+      visualDensity: VisualDensity.compact,
+      textStyle: WidgetStatePropertyAll(Theme.of(context).textTheme.labelMedium),
+    );
+    return active
+        ? FilledButton.tonalIcon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label), style: style)
+        : OutlinedButton.icon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label), style: style);
   }
 
   Widget _slider(BuildContext context, IconData icon, double value, double min, double max,

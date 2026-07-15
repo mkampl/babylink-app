@@ -37,6 +37,7 @@ class RoomConnection extends ChangeNotifier {
   static const _soundThreshold = 0.12;
   static const _cryThreshold = 0.5; // matches the card's "Crying!" line
   static const _cryRearmMs = 6000; // must be quiet this long before we alert again
+  static const _holdMs = 10000; // "listen in" / "mute" / crying hold window
   static const _webrtcGain = 8.0; // WebRTC audioLevel (0..1 RMS) → meter scale
   static const _pendingId = '__pending__'; // the expected-device placeholder
   static const _connectGraceSec = 12; // no device by now → alarm, don't sit silent
@@ -224,14 +225,19 @@ class RoomConnection extends ChangeNotifier {
   }
 
   void _applyMute(BabyStream baby) {
-    final quietFor = DateTime.now().difference(baby.lastEnergy).inMilliseconds;
+    final now = DateTime.now();
+    // Crying keeps the audio on for a rolling 10s window (not just the loud
+    // instant), so a cry is heard even through a manual mute.
+    if (baby.level > _cryThreshold) {
+      baby.listenHoldUntil = now.add(const Duration(milliseconds: _holdMs));
+    }
+    final quietFor = now.difference(baby.lastEnergy).inMilliseconds;
     baby.effectiveMuted = voxEffectiveMuted(
-      mode: baby.mode,
       kind: baby.kind,
+      listenHold: baby.listenHoldActive(now),
+      muteHold: baby.muteHoldActive(now),
       quietForMs: quietFor,
-      level: baby.level,
       voxHoldMs: _voxHoldMs,
-      cryThreshold: _cryThreshold,
     );
     if (baby.kind == BabyKind.webrtc) {
       _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
@@ -318,13 +324,26 @@ class RoomConnection extends ChangeNotifier {
     }
   }
 
-  // ---- Per-baby controls ----
-  void setBabyMode(String id, ListenMode mode) {
+  // ---- Per-baby controls (momentary — they set a 10s window, then auto) ----
+  /// Force this baby audible for ~10s even while quiet ("listen in"), then it
+  /// falls back to auto (VOX). Cancels any active mute.
+  void listenIn(String id) {
     final b = _babies[id];
     if (b == null) return;
-    b.mode = mode;
-    // "Listen in" should be instant: a freshly-opened PCM source has an empty
-    // jitter buffer, so there's nothing stale to clear — the next frame plays.
+    final now = DateTime.now();
+    b.listenHoldUntil = now.add(const Duration(milliseconds: _holdMs));
+    b.muteHoldUntil = now; // clear a mute
+    _applyMute(b);
+    notifyListeners();
+  }
+
+  /// Silence this baby for ~10s, then back to auto. Crying still overrides it.
+  void muteBriefly(String id) {
+    final b = _babies[id];
+    if (b == null) return;
+    final now = DateTime.now();
+    b.muteHoldUntil = now.add(const Duration(milliseconds: _holdMs));
+    b.listenHoldUntil = now; // clear a listen
     _applyMute(b);
     notifyListeners();
   }

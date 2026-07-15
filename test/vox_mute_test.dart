@@ -3,46 +3,55 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('voxEffectiveMuted', () {
-    test('muted mode is silent while quiet', () {
+    test('listen hold forces audible — overrides everything', () {
+      // crying / manual "listen in" both feed listenHold.
       for (final kind in BabyKind.values) {
-        expect(voxEffectiveMuted(mode: ListenMode.muted, kind: kind, quietForMs: 0, level: 0), isTrue);
-        expect(voxEffectiveMuted(mode: ListenMode.muted, kind: kind, quietForMs: 99999, level: 0.1), isTrue);
+        expect(
+            voxEffectiveMuted(kind: kind, listenHold: true, muteHold: false, quietForMs: 99999), isFalse);
+        // listen beats a simultaneous mute (crying overriding a manual mute).
+        expect(
+            voxEffectiveMuted(kind: kind, listenHold: true, muteHold: true, quietForMs: 0), isFalse);
       }
     });
 
-    test('crying overrides a hard mute — a cry is always heard', () {
-      expect(voxEffectiveMuted(mode: ListenMode.muted, kind: BabyKind.pcm, quietForMs: 0, level: 0.8),
-          isFalse);
-      expect(voxEffectiveMuted(mode: ListenMode.muted, kind: BabyKind.webrtc, quietForMs: 0, level: 0.8),
-          isFalse);
-      // Just under the cry threshold stays muted.
-      expect(voxEffectiveMuted(mode: ListenMode.muted, kind: BabyKind.pcm, quietForMs: 0, level: 0.49),
-          isTrue);
+    test('mute hold silences when not listening', () {
+      expect(voxEffectiveMuted(kind: BabyKind.pcm, listenHold: false, muteHold: true, quietForMs: 0), isTrue);
+      expect(
+          voxEffectiveMuted(kind: BabyKind.webrtc, listenHold: false, muteHold: true, quietForMs: 0), isTrue);
     });
 
-    test('listen mode is always audible — overrides VOX quiet', () {
-      // The whole point of "listen in": even long quiet stays open.
-      expect(voxEffectiveMuted(mode: ListenMode.listen, kind: BabyKind.pcm, quietForMs: 99999, level: 0),
-          isFalse);
-      expect(voxEffectiveMuted(mode: ListenMode.listen, kind: BabyKind.webrtc, quietForMs: 99999, level: 0),
-          isFalse);
-    });
-
-    test('auto PCM follows VOX by quiet duration', () {
+    test('auto PCM follows VOX by quiet duration when no hold', () {
       expect(
-          voxEffectiveMuted(mode: ListenMode.auto, kind: BabyKind.pcm, quietForMs: 0, level: 0, voxHoldMs: 4000),
+          voxEffectiveMuted(
+              kind: BabyKind.pcm, listenHold: false, muteHold: false, quietForMs: 0, voxHoldMs: 4000),
           isFalse);
       expect(
-          voxEffectiveMuted(mode: ListenMode.auto, kind: BabyKind.pcm, quietForMs: 3999, level: 0, voxHoldMs: 4000),
+          voxEffectiveMuted(
+              kind: BabyKind.pcm, listenHold: false, muteHold: false, quietForMs: 3999, voxHoldMs: 4000),
           isFalse);
       expect(
-          voxEffectiveMuted(mode: ListenMode.auto, kind: BabyKind.pcm, quietForMs: 4001, level: 0, voxHoldMs: 4000),
+          voxEffectiveMuted(
+              kind: BabyKind.pcm, listenHold: false, muteHold: false, quietForMs: 4001, voxHoldMs: 4000),
           isTrue);
     });
 
     test('auto WebRTC never self-mutes (no reliable receive level)', () {
-      expect(voxEffectiveMuted(mode: ListenMode.auto, kind: BabyKind.webrtc, quietForMs: 99999, level: 0),
+      expect(
+          voxEffectiveMuted(kind: BabyKind.webrtc, listenHold: false, muteHold: false, quietForMs: 99999),
           isFalse);
+    });
+  });
+
+  group('BabyStream hold windows', () {
+    test('holds are inactive by default and honor the deadline', () {
+      final b = BabyStream('a', 'A');
+      final now = DateTime(2026, 1, 1, 12, 0, 0);
+      expect(b.listenHoldActive(now), isFalse);
+      expect(b.muteHoldActive(now), isFalse);
+
+      b.listenHoldUntil = now.add(const Duration(seconds: 10));
+      expect(b.listenHoldActive(now), isTrue);
+      expect(b.listenHoldActive(now.add(const Duration(seconds: 11))), isFalse);
     });
   });
 }
