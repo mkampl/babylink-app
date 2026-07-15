@@ -50,7 +50,11 @@ class BabyCard extends StatelessWidget {
                     : muteActive
                         ? ('Muted', muted)
                         : mutedNow
-                            ? ('Auto-muted (quiet)', muted) // VOX has it silent
+                            // Distinguish the brief "movement, not yet unmuted"
+                            // window (yellow) from true quiet, like the web.
+                            ? (bandFor(level) == Band.yellow
+                                ? ('Movement', muted)
+                                : ('Auto-muted (quiet)', muted))
                             : ('Listening', s.success);
 
     return Card(

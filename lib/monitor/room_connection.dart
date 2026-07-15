@@ -34,11 +34,14 @@ class RoomConnection extends ChangeNotifier {
   final Set<String> _ackedStalls = {}; // babies whose alarm the user silenced
   final AlertTracker _alerts = AlertTracker(cryThreshold: _cryThreshold, cryRearmMs: _cryRearmMs);
 
-  static const _voxHoldMs = 4000;
-  static const _soundThreshold = 0.12;
-  static const _cryThreshold = 0.5; // matches the card's "Crying!" line
+  static const _soundThreshold = 0.12; // green→yellow (movement)
+  static const _cryThreshold = 0.5; // yellow→red (crying); matches the card
   static const _cryRearmMs = 6000; // must be quiet this long before we alert again
-  static const _holdMs = 10000; // "listen in" / "mute" / crying hold window
+  static const _holdMs = 10000; // manual "listen in" / "mute" hold window
+  // Auto-listen (VOX) timing, matching the web (multi-baby-ui.js).
+  static const _yellowDelayMs = 2000; // movement must persist this long to unmute
+  static const _muteDelayMs = 5000; // quiet this long → mute
+  static const _muteAfterCryMs = 10000; // …but 10s if it was just crying
   static const _webrtcGain = 8.0; // WebRTC audioLevel (0..1 RMS) → meter scale
   static const _pendingId = '__pending__'; // the expected-device placeholder
   static const _connectGraceSec = 12; // no device by now → alarm, don't sit silent
@@ -274,18 +277,42 @@ class RoomConnection extends ChangeNotifier {
 
   void _applyMute(BabyStream baby) {
     final now = DateTime.now();
-    // Crying keeps the audio on for a rolling 10s window (not just the loud
-    // instant), so a cry is heard even through a manual mute.
-    if (baby.level > _cryThreshold) {
-      baby.listenHoldUntil = now.add(const Duration(milliseconds: _holdMs));
+    final band = bandFor(baby.level, yellow: _soundThreshold, red: _cryThreshold);
+
+    // Track the loud/quiet episode timers the VOX state machine needs.
+    if (band == Band.green) {
+      if (baby.greenSince.millisecondsSinceEpoch == 0) baby.greenSince = now;
+      baby.loudSince = DateTime.fromMillisecondsSinceEpoch(0);
+    } else {
+      if (baby.loudSince.millisecondsSinceEpoch == 0) baby.loudSince = now;
+      baby.greenSince = DateTime.fromMillisecondsSinceEpoch(0);
     }
-    final quietFor = now.difference(baby.lastEnergy).inMilliseconds;
+    if (band == Band.red) {
+      baby.lastRedAt = now;
+      baby.muteHoldUntil = now; // crying cancels a manual mute, like the web
+    }
+
+    final yellowHeld = band == Band.green ? 0 : now.difference(baby.loudSince).inMilliseconds;
+    final greenHeld = band == Band.green ? now.difference(baby.greenSince).inMilliseconds : 0;
+    final recentlyRed = now.difference(baby.lastRedAt).inMilliseconds < _muteAfterCryMs;
+
+    baby.autoAudible = nextAutoAudible(
+      current: baby.autoAudible,
+      band: band,
+      yellowHeldMs: yellowHeld,
+      greenHeldMs: greenHeld,
+      recentlyRed: recentlyRed,
+      yellowDelayMs: _yellowDelayMs,
+      muteDelayMs: _muteDelayMs,
+      muteAfterCryMs: _muteAfterCryMs,
+    );
+
     baby.effectiveMuted = voxEffectiveMuted(
       kind: baby.kind,
+      red: band == Band.red,
       listenHold: baby.listenHoldActive(now),
       muteHold: baby.muteHoldActive(now),
-      quietForMs: quietFor,
-      voxHoldMs: _voxHoldMs,
+      autoAudible: baby.autoAudible,
     );
     if (baby.kind == BabyKind.webrtc) {
       _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);

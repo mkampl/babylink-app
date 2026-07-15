@@ -2,56 +2,94 @@ import 'package:babylink_app/monitor/baby_stream.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('voxEffectiveMuted', () {
-    test('listen hold forces audible — overrides everything', () {
-      // crying / manual "listen in" both feed listenHold.
-      for (final kind in BabyKind.values) {
-        expect(
-            voxEffectiveMuted(kind: kind, listenHold: true, muteHold: false, quietForMs: 99999), isFalse);
-        // listen beats a simultaneous mute (crying overriding a manual mute).
-        expect(
-            voxEffectiveMuted(kind: kind, listenHold: true, muteHold: true, quietForMs: 0), isFalse);
-      }
+  group('bandFor', () {
+    test('classifies green / yellow / red by level', () {
+      expect(bandFor(0.05), Band.green);
+      expect(bandFor(0.11), Band.green);
+      expect(bandFor(0.12), Band.yellow);
+      expect(bandFor(0.49), Band.yellow);
+      expect(bandFor(0.5), Band.red);
+      expect(bandFor(0.9), Band.red);
     });
+  });
 
-    test('mute hold silences when not listening', () {
-      expect(voxEffectiveMuted(kind: BabyKind.pcm, listenHold: false, muteHold: true, quietForMs: 0), isTrue);
+  group('nextAutoAudible (web-style VOX)', () {
+    test('RED unmutes immediately', () {
       expect(
-          voxEffectiveMuted(kind: BabyKind.webrtc, listenHold: false, muteHold: true, quietForMs: 0), isTrue);
-    });
-
-    test('auto PCM follows VOX by quiet duration when no hold', () {
-      expect(
-          voxEffectiveMuted(
-              kind: BabyKind.pcm, listenHold: false, muteHold: false, quietForMs: 0, voxHoldMs: 4000),
-          isFalse);
-      expect(
-          voxEffectiveMuted(
-              kind: BabyKind.pcm, listenHold: false, muteHold: false, quietForMs: 3999, voxHoldMs: 4000),
-          isFalse);
-      expect(
-          voxEffectiveMuted(
-              kind: BabyKind.pcm, listenHold: false, muteHold: false, quietForMs: 4001, voxHoldMs: 4000),
+          nextAutoAudible(current: false, band: Band.red, yellowHeldMs: 0, greenHeldMs: 0, recentlyRed: false),
           isTrue);
     });
 
-    test('auto WebRTC never self-mutes (no reliable receive level)', () {
+    test('YELLOW only unmutes after the delay', () {
+      // brief movement — stays muted
       expect(
-          voxEffectiveMuted(kind: BabyKind.webrtc, listenHold: false, muteHold: false, quietForMs: 99999),
+          nextAutoAudible(current: false, band: Band.yellow, yellowHeldMs: 500, greenHeldMs: 0, recentlyRed: false),
+          isFalse);
+      // sustained movement — unmutes
+      expect(
+          nextAutoAudible(current: false, band: Band.yellow, yellowHeldMs: 2000, greenHeldMs: 0, recentlyRed: false),
+          isTrue);
+      // already audible stays audible on yellow
+      expect(
+          nextAutoAudible(current: true, band: Band.yellow, yellowHeldMs: 0, greenHeldMs: 0, recentlyRed: false),
+          isTrue);
+    });
+
+    test('GREEN mutes after the delay, longer after crying', () {
+      // audible, brief quiet — stays audible
+      expect(
+          nextAutoAudible(current: true, band: Band.green, yellowHeldMs: 0, greenHeldMs: 3000, recentlyRed: false),
+          isTrue);
+      // audible, quiet past 5s — mutes
+      expect(
+          nextAutoAudible(current: true, band: Band.green, yellowHeldMs: 0, greenHeldMs: 5001, recentlyRed: false),
+          isFalse);
+      // just cried: 5s quiet isn't enough (needs 10s)
+      expect(
+          nextAutoAudible(current: true, band: Band.green, yellowHeldMs: 0, greenHeldMs: 6000, recentlyRed: true),
+          isTrue);
+      expect(
+          nextAutoAudible(current: true, band: Band.green, yellowHeldMs: 0, greenHeldMs: 10001, recentlyRed: true),
+          isFalse);
+      // already muted stays muted
+      expect(
+          nextAutoAudible(current: false, band: Band.green, yellowHeldMs: 0, greenHeldMs: 99999, recentlyRed: false),
           isFalse);
     });
   });
 
-  group('BabyStream hold windows', () {
-    test('holds are inactive by default and honor the deadline', () {
-      final b = BabyStream('a', 'A');
-      final now = DateTime(2026, 1, 1, 12, 0, 0);
-      expect(b.listenHoldActive(now), isFalse);
-      expect(b.muteHoldActive(now), isFalse);
+  group('voxEffectiveMuted (resolution)', () {
+    test('crying (red) is always heard, even through a manual mute', () {
+      expect(
+          voxEffectiveMuted(kind: BabyKind.pcm, red: true, listenHold: false, muteHold: true, autoAudible: false),
+          isFalse);
+    });
 
-      b.listenHoldUntil = now.add(const Duration(seconds: 10));
-      expect(b.listenHoldActive(now), isTrue);
-      expect(b.listenHoldActive(now.add(const Duration(seconds: 11))), isFalse);
+    test('manual listen-in overrides auto', () {
+      expect(
+          voxEffectiveMuted(kind: BabyKind.pcm, red: false, listenHold: true, muteHold: false, autoAudible: false),
+          isFalse);
+    });
+
+    test('manual mute silences when not crying/listening', () {
+      expect(
+          voxEffectiveMuted(kind: BabyKind.pcm, red: false, listenHold: false, muteHold: true, autoAudible: true),
+          isTrue);
+    });
+
+    test('PCM follows the auto latch', () {
+      expect(
+          voxEffectiveMuted(kind: BabyKind.pcm, red: false, listenHold: false, muteHold: false, autoAudible: true),
+          isFalse);
+      expect(
+          voxEffectiveMuted(kind: BabyKind.pcm, red: false, listenHold: false, muteHold: false, autoAudible: false),
+          isTrue);
+    });
+
+    test('WebRTC stays open under auto (no reliable receive level)', () {
+      expect(
+          voxEffectiveMuted(kind: BabyKind.webrtc, red: false, listenHold: false, muteHold: false, autoAudible: false),
+          isFalse);
     });
   });
 }

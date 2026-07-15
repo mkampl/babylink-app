@@ -5,29 +5,62 @@ enum AudioHealth { live, quiet, stalled }
 /// and browsers stream over WebRTC (the web app's only baby transport).
 enum BabyKind { pcm, webrtc }
 
-/// Pure decision for whether a baby's audio should be muted right now. The base
-/// state is always AUTO (VOX): the buttons don't latch — they set short holds
-/// that expire back to auto. Split out so the policy is unit-testable without a
-/// mixer, socket or WebRTC engine.
-///
-/// Priority (highest first):
-/// 1. [listenHold] — crying (RED, held ~10s) OR a manual "listen in" tap →
-///    AUDIBLE. Crying feeds this hold, so a cry is always heard, even through a
-///    manual mute (matches the web, where RED overrides a manual mute).
-/// 2. [muteHold] — a manual "mute" tap (held ~10s) → silent, then back to auto.
-/// 3. base VOX — WebRTC stays OPEN (no reliable receive-side level; a monitor
-///    must never self-mute blindly); PCM mutes once quiet for [voxHoldMs].
+/// The three loudness bands the auto-listen (VOX) reacts to, matching the web:
+/// green = quiet, yellow = movement, red = crying.
+enum Band { green, yellow, red }
+
+Band bandFor(double level, {double yellow = 0.12, double red = 0.5}) {
+  if (level >= red) return Band.red;
+  if (level >= yellow) return Band.yellow;
+  return Band.green;
+}
+
+/// The web's auto-listen state machine (multi-baby-ui.js handleAutoMuteLogic):
+/// - RED  → unmute IMMEDIATELY.
+/// - YELLOW → unmute only after it has stayed ≥yellow for [yellowDelayMs] (a
+///   brief blip doesn't open the mic).
+/// - GREEN → mute after [muteDelayMs] quiet, or [muteAfterCryMs] if it was just
+///   crying (give a settling baby longer).
+/// Pure so the timing is unit-testable. Returns the next "audible" latch value.
+bool nextAutoAudible({
+  required bool current,
+  required Band band,
+  required int yellowHeldMs,
+  required int greenHeldMs,
+  required bool recentlyRed,
+  int yellowDelayMs = 2000,
+  int muteDelayMs = 5000,
+  int muteAfterCryMs = 10000,
+}) {
+  switch (band) {
+    case Band.red:
+      return true;
+    case Band.yellow:
+      return current || yellowHeldMs >= yellowDelayMs;
+    case Band.green:
+      final delay = recentlyRed ? muteAfterCryMs : muteDelayMs;
+      if (current && greenHeldMs >= delay) return false;
+      return current;
+  }
+}
+
+/// Resolve what actually plays, given the manual overrides and the VOX latch.
+/// Priority: crying (RED) is always heard — even through a manual mute (matches
+/// the web); then a manual "listen in"; then a manual "mute"; then, for PCM, the
+/// [autoAudible] latch. WebRTC has no reliable receive-side level so it stays
+/// OPEN under auto (a monitor must never self-mute blindly).
 bool voxEffectiveMuted({
   required BabyKind kind,
+  required bool red,
   required bool listenHold,
   required bool muteHold,
-  required int quietForMs,
-  int voxHoldMs = 4000,
+  required bool autoAudible,
 }) {
+  if (red) return false;
   if (listenHold) return false;
   if (muteHold) return true;
   if (kind == BabyKind.webrtc) return false;
-  return quietForMs > voxHoldMs;
+  return !autoAudible;
 }
 
 /// Per-baby state in a room: name, meter level, health, and independent
@@ -56,8 +89,15 @@ class BabyStream {
   DateTime lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime lastEnergy = DateTime.fromMillisecondsSinceEpoch(0);
 
-  // Temporary overrides of the auto (VOX) base — the buttons set these windows
-  // and then it falls back to auto. Crying refreshes [listenHoldUntil] too.
+  // Auto-listen (VOX) state machine, matching the web's RED-instant /
+  // YELLOW-delayed / GREEN-mute-after behaviour.
+  bool autoAudible = false; // the latch: is auto currently opening the mic?
+  DateTime loudSince = DateTime.fromMillisecondsSinceEpoch(0); // ≥yellow episode start
+  DateTime greenSince = DateTime.fromMillisecondsSinceEpoch(0); // quiet episode start
+  DateTime lastRedAt = DateTime.fromMillisecondsSinceEpoch(0); // last crying moment
+
+  // Temporary MANUAL overrides of the auto base — buttons set these windows and
+  // then it falls back to auto.
   DateTime listenHoldUntil = DateTime.fromMillisecondsSinceEpoch(0); // audible until
   DateTime muteHoldUntil = DateTime.fromMillisecondsSinceEpoch(0); // silent until
   bool effectiveMuted = true; // what's actually playing right now
