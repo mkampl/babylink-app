@@ -30,7 +30,7 @@ class RoomConnection extends ChangeNotifier {
 
   LinkState link = LinkState.connecting;
   final Map<String, BabyStream> _babies = {};
-  final Map<String, ({int level, bool charging})> _battery = {}; // by id, may pre-date the baby
+  final Map<String, ({int? level, bool charging})> _battery = {}; // by id, may pre-date the baby
   final Set<String> _ackedStalls = {}; // babies whose alarm the user silenced
   final AlertTracker _alerts = AlertTracker(cryThreshold: _cryThreshold, cryRearmMs: _cryRearmMs);
 
@@ -100,8 +100,9 @@ class RoomConnection extends ChangeNotifier {
     });
     socket.on('baby-status', (data) {
       if (data is! Map) return;
-      final id = data['socketId']?.toString();
-      _setBattery(id, (data['battery'] as num?)?.toInt(), data['charging'] == true);
+      // The event firing means the device reports battery; the value may be null
+      // (unknown → "--%") or a 0-100 level.
+      _setBattery(data['socketId']?.toString(), (data['battery'] as num?)?.toInt(), data['charging'] == true);
     });
     socket.on('participant-joined', (data) {
       if (data is Map) {
@@ -140,17 +141,20 @@ class RoomConnection extends ChangeNotifier {
   void _seedBattery(dynamic participants) {
     if (participants is! List) return;
     for (final p in participants) {
-      if (p is Map && p['battery'] != null) {
+      // containsKey, not != null: a present-but-null value means "reported,
+      // unknown" (→ "--%"), which must be distinguished from "not reported".
+      if (p is Map && p.containsKey('battery')) {
         _setBattery(p['socketId']?.toString(), (p['battery'] as num?)?.toInt(), p['charging'] == true);
       }
     }
   }
 
   void _setBattery(String? id, int? level, bool charging) {
-    if (id == null || level == null) return;
+    if (id == null) return;
     _battery[id] = (level: level, charging: charging);
     final baby = _babies[id];
     if (baby != null) {
+      baby.batteryReported = true;
       baby.battery = level;
       baby.charging = charging;
       notifyListeners();
@@ -160,6 +164,7 @@ class RoomConnection extends ChangeNotifier {
   void _applyBattery(BabyStream b) {
     final bat = _battery[b.id];
     if (bat != null) {
+      b.batteryReported = true;
       b.battery = bat.level;
       b.charging = bat.charging;
     }

@@ -44,7 +44,11 @@ class BabyStream {
   bool pending = false;
   bool waitedTooLong = false; // grace window passed with still no device
 
-  int? battery; // last self-reported battery %, if the device reports it
+  // Battery is three-state: [batteryReported]=false → device reports none (no
+  // chip); reported with [battery]==null → sense active but unreadable ("--%",
+  // e.g. an ESP with no divider soldered); reported with 0-100 → a real level.
+  bool batteryReported = false;
+  int? battery;
   bool charging = false;
 
   double level = 0; // 0..1 latest peak
