@@ -9,6 +9,7 @@ import 'alert_tracker.dart';
 import 'baby_stream.dart';
 import 'notify_service.dart';
 import 'pcm_player.dart';
+import 'sleep_tracker.dart';
 import 'webrtc_receiver.dart';
 
 enum LinkState { connecting, listening, reconnecting }
@@ -31,6 +32,7 @@ class RoomConnection extends ChangeNotifier {
   LinkState link = LinkState.connecting;
   final Map<String, BabyStream> _babies = {};
   final Map<String, ({int? level, bool charging})> _battery = {}; // by id, may pre-date the baby
+  final Map<String, SleepTracker> _sleep = {}; // per-baby sleep history
   final Set<String> _ackedStalls = {}; // babies whose alarm the user silenced
   final AlertTracker _alerts = AlertTracker(cryThreshold: _cryThreshold, cryRearmMs: _cryRearmMs);
 
@@ -173,6 +175,17 @@ class RoomConnection extends ChangeNotifier {
     }
   }
 
+  /// Per-baby sleep history (mirrors the web). Created on first sight and loaded
+  /// from disk so a re-opened monitor shows the baby's earlier night.
+  SleepTracker? sleepFor(String id) => _sleep[id];
+
+  void _ensureSleep(BabyStream b) {
+    if (_sleep.containsKey(b.id)) return;
+    final t = SleepTracker(room.roomId, b.id);
+    _sleep[b.id] = t;
+    t.load(); // async — fills in history when ready
+  }
+
   void _kickBaby(String? socketId) {
     if (socketId == null) return;
     if (WebRtcReceiver.isWebrtcBaby(socketId) && _webrtc?.has(socketId) != true) {
@@ -188,6 +201,7 @@ class RoomConnection extends ChangeNotifier {
       baby = BabyStream(id, name.isEmpty ? 'Baby' : name, kind: BabyKind.webrtc);
       _babies[id] = baby;
       _applyBattery(baby);
+      _ensureSleep(baby);
     } else {
       baby.kind = BabyKind.webrtc;
       if (name.isNotEmpty) baby.name = name;
@@ -223,6 +237,7 @@ class RoomConnection extends ChangeNotifier {
       baby = BabyStream(id, (name == null || name.isEmpty) ? 'Baby' : name);
       _babies[id] = baby;
       _applyBattery(baby);
+      _ensureSleep(baby);
       _mixer.addSource(id);
       _mixer.setVolume(id, baby.volume);
       _applyMute(baby);
@@ -346,6 +361,9 @@ class RoomConnection extends ChangeNotifier {
       if (baby.health != AudioHealth.stalled) _ackedStalls.remove(baby.id);
       _checkNotify(baby, now);
       _applyMute(baby);
+      // Feed the sleep history — but only while streaming, so a disconnect
+      // reads as a grey "no data" gap, not as "quietly asleep".
+      if (baby.health != AudioHealth.stalled) _sleep[baby.id]?.record(now, baby.level);
     }
 
     // The expected-device placeholder: drop it once a real device streams.
@@ -461,6 +479,9 @@ class RoomConnection extends ChangeNotifier {
       _socket?.dispose();
     } catch (_) {}
     _mixer.stop();
+    for (final t in _sleep.values) {
+      t.dispose(); // flush sleep history to disk
+    }
     NotifyService.clearAll(); // leaving the monitor clears its alerts
     super.dispose();
   }

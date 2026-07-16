@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import 'baby_stream.dart';
+import 'sleep_timeline.dart';
+import 'sleep_tracker.dart';
 
 /// One baby's card in the room monitor: name, live status + level meter, and
 /// per-baby controls. The base state is always auto-listen (VOX); "Listen in"
@@ -9,6 +11,7 @@ import 'baby_stream.dart';
 /// latch. A cry overrides everything and is always heard.
 class BabyCard extends StatelessWidget {
   final BabyStream baby;
+  final SleepTracker? sleep;
   final VoidCallback onListen; // force audible ~10s
   final VoidCallback onMute; // silence ~10s
   final ValueChanged<double> onVolume;
@@ -17,6 +20,7 @@ class BabyCard extends StatelessWidget {
   const BabyCard({
     super.key,
     required this.baby,
+    this.sleep,
     required this.onListen,
     required this.onMute,
     required this.onVolume,
@@ -96,6 +100,7 @@ class BabyCard extends StatelessWidget {
               Gap.hSm,
               _slider(context, Icons.volume_up_rounded, baby.volume, 0, 1, onVolume),
               _slider(context, Icons.graphic_eq_rounded, baby.sensitivity, 0.5, 3.0, onSensitivity),
+              if (sleep != null) SleepTimeline(tracker: sleep!),
             ],
           ],
         ),

@@ -120,6 +120,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     for (final baby in babies) ...[
                       BabyCard(
                         baby: baby,
+                        sleep: _conn.sleepFor(baby.id),
                         onListen: () => _conn.listenIn(baby.id),
                         onMute: () => _conn.muteBriefly(baby.id),
                         onVolume: (v) => _conn.setBabyVolume(baby.id, v),
