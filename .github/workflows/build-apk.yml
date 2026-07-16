@@ -1,0 +1,56 @@
+name: Build APK
+
+# Build the Android APK in CI and publish it. Tag a release (e.g. `git tag v1.0.0
+# && git push --tags`) and the APK is attached to that GitHub Release as
+# `babylink.apk` — the web app's footer links to
+# github.com/<owner>/babylink-app/releases/latest/download/babylink.apk.
+# A manual run (workflow_dispatch) instead uploads the APK as a build artifact.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # create releases / upload assets
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # Release build. Signing currently uses the auto-generated debug key
+      # (see android/app/build.gradle.kts) — installable via "unknown sources".
+      # Swap in a real keystore later for Play/production distribution.
+      - run: flutter build apk --release
+
+      - name: Stage APK
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/babylink.apk
+
+      - name: Attach to the release (tag builds)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/babylink.apk
+
+      - name: Upload as an artifact (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: babylink-apk
+          path: dist/babylink.apk
