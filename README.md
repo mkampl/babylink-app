@@ -1,16 +1,33 @@
-# babylink_app
+# BabyLink app
 
-BabyLink companion — set up and monitor your BabyLink baby monitor.
+Native Android companion for the self-hosted [BabyLink](https://github.com/mkampl/babylink)
+baby monitor. Set up a device over Bluetooth, then listen — no cloud, no accounts.
+Try the web app first at <https://babylink.itvoodoo.at>.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Listen to every baby in a room at once (ESP32-S3 over PCM, phones/browsers over WebRTC).
+- Auto-listen (opens on sound, mutes on quiet), listen-in and mute, per-baby.
+- Local cry / disconnect alerts and an audible connection-lost alarm — works backgrounded.
+- Per-baby sleep timeline and activity log.
+- Battery readout for the baby device and this phone.
+- Turn this phone into a baby unit (mic streaming).
+- BLE setup wizard for BabyLink ESP32-S3 hardware.
 
-A few resources to get you started if this is your first Flutter project:
+## Install
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Grab the APK from the [latest release](https://github.com/mkampl/babylink-app/releases/latest),
+or build it yourself:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter pub get
+flutter build apk --release
+```
+
+Point it at your own server in Settings (defaults to the <https://babylink.itvoodoo.at> demo).
+
+## License
+
+BSD-3-Clause — see `LICENSE`. Third-party packages: `THIRD_PARTY.md`.
+
+The server/firmware live in the [babylink](https://github.com/mkampl/babylink) repo.
