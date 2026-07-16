@@ -129,7 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }),
               decoration: const InputDecoration(
                 labelText: 'Server address',
-                hintText: 'https://baby.example.com  or  192.168.1.50:3000',
+                hintText: 'babylink.itvoodoo.at  or  192.168.1.50:3000',
                 prefixIcon: Icon(Icons.dns_rounded),
               ),
             ),
