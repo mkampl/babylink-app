@@ -121,8 +121,10 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       BabyCard(
                         baby: baby,
                         sleep: _conn.sleepFor(baby.id),
+                        soloActive: _conn.soloId == baby.id,
                         onListen: () => _conn.listenIn(baby.id),
                         onMute: () => _conn.muteBriefly(baby.id),
+                        onSolo: () => _conn.toggleSolo(baby.id),
                         onVolume: (v) => _conn.setBabyVolume(baby.id, v),
                         onSensitivity: (s) => _conn.setBabySensitivity(baby.id, s),
                       ),

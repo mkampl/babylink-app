@@ -12,8 +12,10 @@ import 'sleep_tracker.dart';
 class BabyCard extends StatelessWidget {
   final BabyStream baby;
   final SleepTracker? sleep;
+  final bool soloActive;
   final VoidCallback onListen; // force audible ~10s
   final VoidCallback onMute; // silence ~10s
+  final VoidCallback onSolo; // hear only this baby
   final ValueChanged<double> onVolume;
   final ValueChanged<double> onSensitivity;
 
@@ -21,8 +23,10 @@ class BabyCard extends StatelessWidget {
     super.key,
     required this.baby,
     this.sleep,
+    this.soloActive = false,
     required this.onListen,
     required this.onMute,
+    required this.onSolo,
     required this.onVolume,
     required this.onSensitivity,
   });
@@ -80,6 +84,17 @@ class BabyCard extends StatelessWidget {
                 ),
                 if (baby.batteryReported) ...[_battery(context), Gap.wSm],
                 Text(statusText, style: t.labelMedium!.copyWith(color: statusColor)),
+                if (!baby.pending)
+                  IconButton(
+                    onPressed: onSolo,
+                    icon: const Icon(Icons.headset_rounded, size: 20),
+                    color: soloActive ? Theme.of(context).colorScheme.primary : muted,
+                    tooltip: soloActive ? 'Exit solo' : 'Solo — hear only this baby',
+                    visualDensity: VisualDensity.compact,
+                    style: soloActive
+                        ? IconButton.styleFrom(backgroundColor: s.infoBg)
+                        : null,
+                  ),
               ],
             ),
             if (!baby.pending) ...[
@@ -101,9 +116,44 @@ class BabyCard extends StatelessWidget {
               _slider(context, Icons.volume_up_rounded, baby.volume, 0, 1, onVolume),
               _slider(context, Icons.graphic_eq_rounded, baby.sensitivity, 0.5, 3.0, onSensitivity),
               if (sleep != null) SleepTimeline(tracker: sleep!),
+              if (baby.activityLog.isNotEmpty) _activityLog(context),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// A collapsible per-baby event log (newest first), mirroring the web.
+  Widget _activityLog(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    String hhmm(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    final latest = baby.activityLog.first;
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: Gap.sm),
+        title: Text('Activity', style: t.labelLarge),
+        subtitle: Text('${hhmm(latest.time)}  ${latest.message}',
+            style: t.labelMedium!.copyWith(color: muted), maxLines: 1, overflow: TextOverflow.ellipsis),
+        children: [
+          for (final e in baby.activityLog.take(15))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 42,
+                    child: Text(hhmm(e.time), style: t.labelSmall!.copyWith(color: muted)),
+                  ),
+                  Expanded(child: Text(e.message, style: t.labelMedium)),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

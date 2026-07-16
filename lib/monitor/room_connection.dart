@@ -30,6 +30,7 @@ class RoomConnection extends ChangeNotifier {
   Timer? _levelPoll;
 
   LinkState link = LinkState.connecting;
+  String? soloId; // when set, only this baby is heard (mute all others)
   final Map<String, BabyStream> _babies = {};
   final Map<String, ({int? level, bool charging})> _battery = {}; // by id, may pre-date the baby
   final Map<String, SleepTracker> _sleep = {}; // per-baby sleep history
@@ -184,6 +185,7 @@ class RoomConnection extends ChangeNotifier {
     final t = SleepTracker(room.roomId, b.id);
     _sleep[b.id] = t;
     t.load(); // async — fills in history when ready
+    b.log(DateTime.now(), '🔌 Connected'); // first sight of this baby
   }
 
   void _kickBaby(String? socketId) {
@@ -311,6 +313,7 @@ class RoomConnection extends ChangeNotifier {
     final greenHeld = band == Band.green ? now.difference(baby.greenSince).inMilliseconds : 0;
     final recentlyRed = now.difference(baby.lastRedAt).inMilliseconds < _muteAfterCryMs;
 
+    final wasAutoAudible = baby.autoAudible;
     baby.autoAudible = nextAutoAudible(
       current: baby.autoAudible,
       band: band,
@@ -321,14 +324,25 @@ class RoomConnection extends ChangeNotifier {
       muteDelayMs: _muteDelayMs,
       muteAfterCryMs: _muteAfterCryMs,
     );
+    // Log the auto-listen transitions (only when auto is actually in charge).
+    if (baby.kind == BabyKind.pcm &&
+        soloId == null &&
+        !baby.listenHoldActive(now) &&
+        !baby.muteHoldActive(now) &&
+        baby.autoAudible != wasAutoAudible) {
+      baby.log(now, baby.autoAudible ? '🔊 Auto-unmuted (movement)' : '🔇 Auto-muted (quiet)');
+    }
 
-    baby.effectiveMuted = voxEffectiveMuted(
-      kind: baby.kind,
-      red: band == Band.red,
-      listenHold: baby.listenHoldActive(now),
-      muteHold: baby.muteHoldActive(now),
-      autoAudible: baby.autoAudible,
-    );
+    // Solo overrides everything: only the solo'd baby is heard.
+    baby.effectiveMuted = soloId != null
+        ? baby.id != soloId
+        : voxEffectiveMuted(
+            kind: baby.kind,
+            red: band == Band.red,
+            listenHold: baby.listenHoldActive(now),
+            muteHold: baby.muteHoldActive(now),
+            autoAudible: baby.autoAudible,
+          );
     if (baby.kind == BabyKind.webrtc) {
       _webrtc?.setVolume(baby.id, baby.effectiveMuted ? 0.0 : baby.volume);
     } else {
@@ -407,10 +421,13 @@ class RoomConnection extends ChangeNotifier {
       switch (e) {
         case AlertEvent.offline:
           NotifyService.disconnected(baby.id, baby.name);
+          baby.log(now, '📴 Went offline');
         case AlertEvent.online:
           NotifyService.clearDisconnected(baby.id);
+          baby.log(now, '🔌 Reconnected');
         case AlertEvent.cryStart:
           NotifyService.crying(baby.id, baby.name);
+          baby.log(now, '🚨 Crying');
         case AlertEvent.cryStop:
           NotifyService.clearCry(baby.id);
       }
@@ -426,6 +443,7 @@ class RoomConnection extends ChangeNotifier {
     final now = DateTime.now();
     b.listenHoldUntil = now.add(const Duration(milliseconds: _holdMs));
     b.muteHoldUntil = now; // clear a mute
+    b.log(now, '🔊 Listening in');
     _applyMute(b);
     notifyListeners();
   }
@@ -437,7 +455,20 @@ class RoomConnection extends ChangeNotifier {
     final now = DateTime.now();
     b.muteHoldUntil = now.add(const Duration(milliseconds: _holdMs));
     b.listenHoldUntil = now; // clear a listen
+    b.log(now, '🔇 Muted');
     _applyMute(b);
+    notifyListeners();
+  }
+
+  /// Solo: hear only this baby (mute all others). Tapping the solo'd baby again
+  /// clears it and returns everyone to auto.
+  void toggleSolo(String id) {
+    soloId = soloId == id ? null : id;
+    final now = DateTime.now();
+    _babies[id]?.log(now, soloId == null ? '🎧 Solo off' : '🎧 Solo — only this baby');
+    for (final b in _babies.values) {
+      _applyMute(b);
+    }
     notifyListeners();
   }
 

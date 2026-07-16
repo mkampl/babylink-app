@@ -107,5 +107,13 @@ class BabyStream {
   bool listenHoldActive(DateTime now) => now.isBefore(listenHoldUntil);
   bool muteHoldActive(DateTime now) => now.isBefore(muteHoldUntil);
 
+  /// Recent events for this baby (newest first), like the web activity log.
+  final List<({DateTime time, String message})> activityLog = [];
+
+  void log(DateTime now, String message) {
+    activityLog.insert(0, (time: now, message: message));
+    if (activityLog.length > 40) activityLog.removeLast();
+  }
+
   BabyStream(this.id, this.name, {this.kind = BabyKind.pcm});
 }
