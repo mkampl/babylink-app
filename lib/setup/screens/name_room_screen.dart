@@ -45,10 +45,10 @@ class _NameRoomScreenState extends State<NameRoomScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return StepScaffold(
-      title: 'Name this room',
-      subtitle: 'Give it a name you’ll recognise in your rooms list.',
+      title: l10n.nameThisRoom,
+      subtitle: l10n.nameRoomSub,
       bottom: PrimaryButton(
-        'Connect BabyLink',
+        l10n.connectBabylink,
         icon: Icons.check_rounded,
         onPressed: _submit,
       ),
@@ -70,8 +70,8 @@ class _NameRoomScreenState extends State<NameRoomScreen> {
             ),
           ),
           Gap.hMd,
-          const TipBanner(
-            'You can leave it blank — we’ll name it after the device.',
+          TipBanner(
+            l10n.nameRoomBlank,
             kind: TipKind.info,
           ),
         ],

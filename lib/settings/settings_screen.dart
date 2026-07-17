@@ -139,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             Gap.hMd,
             if (_okVersion != null)
-              TipBanner('Connected — BabyLink $_okVersion 🎉', kind: TipKind.success)
+              TipBanner(l10n.serverConnected(_okVersion!), kind: TipKind.success)
             else if (_error != null)
               TipBanner(_error!, kind: TipKind.danger),
             Gap.hMd,
@@ -168,9 +168,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (_custom)
               TextButton(onPressed: _reset, child: Text(l10n.resetToDemoServer)),
             Gap.hLg,
-            const TipBanner(
-              'Existing rooms keep the server they were set up on. This only changes '
-              'where NEW rooms and devices are created.',
+            TipBanner(
+              l10n.serverChangeNote,
               kind: TipKind.info,
             ),
             Gap.hLg,
@@ -212,22 +211,26 @@ class _LanguageSection extends StatelessWidget {
             Gap.hMd,
             Card(
               clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  RadioListTile<String?>(
-                    value: null,
-                    groupValue: current,
-                    title: Text(l10n.languageAuto),
-                    onChanged: (_) => localeController.setLocale(null),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: current,
+                    isExpanded: true,
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(l10n.languageAuto),
+                      ),
+                      for (final lang in _languages)
+                        DropdownMenuItem<String?>(
+                          value: lang.code,
+                          child: Text(lang.label),
+                        ),
+                    ],
+                    onChanged: (v) => localeController.setLocale(v),
                   ),
-                  for (final lang in _languages)
-                    RadioListTile<String?>(
-                      value: lang.code,
-                      groupValue: current,
-                      title: Text(lang.label),
-                      onChanged: (_) => localeController.setLocale(lang.code),
-                    ),
-                ],
+                ),
               ),
             ),
           ],

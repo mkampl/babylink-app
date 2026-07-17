@@ -1,5 +1,7 @@
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import '../l10n/l10n_sync.dart';
+
 /// Runs an Android foreground service while monitoring so the process (and thus
 /// the Socket.IO connection + PCM playback + disconnect alarm) keeps running
 /// with the app backgrounded or the screen off — the difference between a toy
@@ -7,12 +9,13 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 class MonitorService {
   MonitorService._();
 
-  static void configure() {
+  static Future<void> configure() async {
+    final l10n = await l10nSync();
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'babylink_monitor',
-        channelName: 'BabyLink monitoring',
-        channelDescription: 'Keeps listening to your BabyLink in the background.',
+        channelName: l10n.svcMonitorChannel,
+        channelDescription: l10n.svcMonitorChannelDesc,
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
       ),
@@ -28,10 +31,11 @@ class MonitorService {
   static Future<void> start(String babyName) async {
     await FlutterForegroundTask.requestNotificationPermission();
     if (await FlutterForegroundTask.isRunningService) return;
+    final l10n = await l10nSync();
     await FlutterForegroundTask.startService(
       serviceTypes: [ForegroundServiceTypes.mediaPlayback],
-      notificationTitle: 'Listening to $babyName',
-      notificationText: 'BabyLink is monitoring',
+      notificationTitle: l10n.svcListeningTo(babyName),
+      notificationText: l10n.svcMonitorRunning,
     );
   }
 

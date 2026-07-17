@@ -60,23 +60,23 @@ class _GateScreenState extends State<GateScreen> {
     final t = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context);
     return StepScaffold(
-      title: 'One quick tap on the device',
-      subtitle: 'This keeps your monitor secure.',
+      title: l10n.gateTitle,
+      subtitle: l10n.gateSecure,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Gap.hLg,
           const HeroBadge(emoji: '👆', pulse: true, size: 132),
           Gap.hXl,
-          const TipBanner(
-            'Press the button on your BabyLink once. Its light will blink three times.',
+          TipBanner(
+            l10n.gatePress,
             kind: TipKind.info,
           ),
           Gap.hLg,
           Center(child: Text(l10n.waitingForYou, style: t.labelMedium)),
           if (_slow) ...[
             Gap.hLg,
-            const TipBanner('Still waiting — try pressing the button again.', kind: TipKind.warning),
+            TipBanner(l10n.gateStillWaiting, kind: TipKind.warning),
           ],
         ],
       ),

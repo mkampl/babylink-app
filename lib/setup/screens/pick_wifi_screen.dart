@@ -54,8 +54,10 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       setState(() {
-        _error = 'Couldn’t scan for WiFi. Move the device closer and try again.';
+        _error = l10n.wifiScanFailed;
         _loading = false;
       });
     }
@@ -102,8 +104,8 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
     final t = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context);
     return StepScaffold(
-      title: 'Choose your WiFi',
-      subtitle: 'Pick the network your BabyLink should join.',
+      title: l10n.chooseWifi,
+      subtitle: l10n.chooseWifiSub,
       actions: [
         IconButton(
           onPressed: _loading ? null : _scan,
@@ -124,8 +126,8 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
             TipBanner(_error!, kind: TipKind.danger),
           ] else if ((_nets ?? []).isEmpty) ...[
             Gap.hMd,
-            const TipBanner(
-              'No networks found. Move your BabyLink closer to your router, then refresh.',
+            TipBanner(
+              l10n.noNetworksFound,
               kind: TipKind.info,
             ),
           ] else ...[
@@ -142,7 +144,7 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
             Gap.hSm,
             EntityTile(
               icon: Icons.keyboard_rounded,
-              title: 'Enter network name manually',
+              title: l10n.enterNetworkNameManually,
               onTap: _manualEntry,
             ),
           ],

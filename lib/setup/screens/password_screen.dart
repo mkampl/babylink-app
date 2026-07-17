@@ -59,12 +59,12 @@ class _PasswordScreenState extends State<PasswordScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return StepScaffold(
-      title: 'Enter the WiFi password',
-      subtitle: 'for “${widget.session.ssid}”',
+      title: l10n.enterWifiPassword,
+      subtitle: l10n.forSsid(widget.session.ssid),
       bottom: ValueListenableBuilder(
         valueListenable: _controller,
         builder: (_, value, __) => PrimaryButton(
-          'Next',
+          l10n.next,
           icon: Icons.arrow_forward_rounded,
           onPressed: value.text.isEmpty ? null : _submit,
         ),
@@ -86,7 +86,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
             decoration: InputDecoration(
               labelText: l10n.password,
               suffixIcon: Semantics(
-                label: _hidden ? 'Show password' : 'Hide password',
+                label: _hidden ? l10n.showPassword : l10n.hidePassword,
                 child: IconButton(
                   icon: Icon(_hidden ? Icons.visibility_rounded : Icons.visibility_off_rounded),
                   onPressed: () => setState(() => _hidden = !_hidden),
@@ -97,8 +97,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
           Gap.hMd,
           TipBanner(
             _prefilled
-                ? 'Using your saved password for this network. Tap the field to change it.'
-                : 'This is your home WiFi password — the same one on your other devices.',
+                ? l10n.savedPasswordNote
+                : l10n.homeWifiNote,
             kind: _prefilled ? TipKind.success : TipKind.info,
           ),
         ],

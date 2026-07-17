@@ -93,17 +93,18 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
       } else {
         // Config was saved & applied, but we didn't see it online in time.
         // Likely a wrong password or weak signal.
+        final l10n = AppLocalizations.of(context);
         setState(() {
           _stage = _Stage.failed;
-          _error = 'Your BabyLink couldn’t join that network in time. '
-              'Double-check the password, or try a stronger signal.';
+          _error = l10n.setupJoinTimeout;
         });
       }
     } catch (e) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       setState(() {
         _stage = _Stage.failed;
-        _error = 'Something went wrong setting up the device. Let’s try again.';
+        _error = l10n.setupFailedGeneric;
       });
     }
   }
@@ -116,7 +117,7 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
     return PopScope(
       canPop: false,
       child: StepScaffold(
-        title: 'Setting up your BabyLink',
+        title: l10n.settingUpTitle,
         showBack: false,
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -124,10 +125,10 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
             Gap.hLg,
             const HeroBadge(emoji: '✨', pulse: true),
             Gap.hXl,
-            _row('Creating your room', _Stage.room, active),
-            _row('Saving WiFi', _Stage.saving, active),
-            _row('Restarting the device', _Stage.restarting, active),
-            _row('Joining your network', _Stage.joining, active),
+            _row(l10n.stageCreatingRoom, _Stage.room, active),
+            _row(l10n.stageSavingWifi, _Stage.saving, active),
+            _row(l10n.stageRestarting, _Stage.restarting, active),
+            _row(l10n.stageJoining, _Stage.joining, active),
             Gap.hLg,
             Center(
               child: Text(
@@ -174,12 +175,13 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
   }
 
   Widget _failed(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return StepScaffold(
-      title: 'Almost there',
-      subtitle: 'The setup didn’t finish.',
+      title: l10n.almostThere,
+      subtitle: l10n.setupDidntFinish,
       showBack: false,
       bottom: PrimaryButton(
-        'Try again',
+        l10n.tryAgain,
         icon: Icons.refresh_rounded,
         onPressed: () => Navigator.of(context)
           ..pop()
@@ -191,7 +193,7 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
           Gap.hLg,
           HeroBadge(emoji: '😕', tint: context.status.warning),
           Gap.hXl,
-          TipBanner(_error ?? 'Please try again.', kind: TipKind.danger),
+          TipBanner(_error ?? l10n.pleaseTryAgain, kind: TipKind.danger),
         ],
       ),
     );

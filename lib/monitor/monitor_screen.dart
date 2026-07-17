@@ -31,8 +31,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   void initState() {
     super.initState();
-    MonitorService.configure();
-    MonitorService.start(widget.room.name);
+    MonitorService.configure()
+        .then((_) => MonitorService.start(widget.room.name));
     _conn = RoomConnection(widget.room);
     _conn.start();
     WakelockPlus.enable();
@@ -115,7 +115,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: Gap.md),
                         child: TipBanner(
-                          _conn.link == LinkState.connecting ? 'Connecting…' : 'Reconnecting…',
+                          _conn.link == LinkState.connecting ? l10n.connecting : l10n.reconnectingStatus,
                           kind: TipKind.info,
                         ),
                       ),
@@ -210,7 +210,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
         children: [
           HeroBadge(emoji: '👂', pulse: true, size: 132),
           Gap.hLg,
-          Text(connecting ? 'Connecting…' : 'Waiting for a baby device',
+          Text(connecting ? l10n.connecting : l10n.waitingForBabyDevice,
               textAlign: TextAlign.center, style: t.headlineSmall),
           Gap.hSm,
           Text(l10n.waitingForStream,

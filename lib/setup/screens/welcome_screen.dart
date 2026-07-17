@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
 import '../../widgets/primary_button.dart';
@@ -13,12 +14,13 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return StepScaffold(
-      title: 'Set up your BabyLink',
-      subtitle: 'Let’s get your monitor connected to WiFi. It only takes a minute.',
+      title: l10n.welcomeTitle,
+      subtitle: l10n.welcomeBody,
       showBack: false,
       bottom: PrimaryButton(
-        'Get started',
+        l10n.getStarted,
         icon: Icons.arrow_forward_rounded,
         onPressed: () {
           Navigator.of(context).push(MaterialPageRoute(
@@ -28,12 +30,12 @@ class WelcomeScreen extends StatelessWidget {
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
+        children: [
           Gap.hLg,
-          HeroBadge(emoji: '👶', size: 140),
+          const HeroBadge(emoji: '👶', size: 140),
           Gap.hXl,
           TipBanner(
-            'Private by design. Everything stays on your home network — nothing goes to the cloud.',
+            l10n.welcomePrivacy,
             kind: TipKind.info,
             icon: Icons.lock_rounded,
           ),

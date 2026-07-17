@@ -1,17 +1,20 @@
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import '../l10n/l10n_sync.dart';
+
 /// Foreground service (microphone type) that keeps the phone-as-baby streaming
 /// its mic while backgrounded or screen-off. Mirrors MonitorService but with
 /// the microphone service type Android 14+ requires for background capture.
 class BabyService {
   BabyService._();
 
-  static void configure() {
+  static Future<void> configure() async {
+    final l10n = await l10nSync();
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'babylink_baby',
-        channelName: 'BabyLink streaming',
-        channelDescription: 'Streams this phone’s microphone to your room.',
+        channelName: l10n.svcBabyChannel,
+        channelDescription: l10n.svcBabyChannelDesc,
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
       ),
@@ -27,10 +30,11 @@ class BabyService {
   static Future<void> start(String roomName) async {
     await FlutterForegroundTask.requestNotificationPermission();
     if (await FlutterForegroundTask.isRunningService) return;
+    final l10n = await l10nSync();
     await FlutterForegroundTask.startService(
       serviceTypes: [ForegroundServiceTypes.microphone],
-      notificationTitle: 'Streaming to $roomName',
-      notificationText: 'This phone is acting as a baby unit',
+      notificationTitle: l10n.svcStreamingTo(roomName),
+      notificationText: l10n.svcBabyRunning,
     );
   }
 

@@ -156,9 +156,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _share(SavedRoom r) {
+    final l10n = AppLocalizations.of(context);
     SharePlus.instance.share(ShareParams(
-      text: 'Join ${r.name} on BabyLink 👶\nOpen this link and choose Parent (to listen) or Baby (to add a camera/mic):\n${r.roomLink}',
-      subject: 'BabyLink — ${r.name}',
+      text: l10n.shareRoomText(r.roomLink, r.name),
+      subject: l10n.shareRoomSubject(r.name),
     ));
   }
 
@@ -207,9 +208,10 @@ class _HomeScreenState extends State<HomeScreen> {
       final res = await admin.verifyPin(pin);
       if (res == PinVerify.ok) return true;
       if (!mounted) return false;
+      final l10n = AppLocalizations.of(context);
       final msg = res == PinVerify.locked
-          ? 'Too many attempts — wait a moment and try again.'
-          : 'That PIN didn’t match.';
+          ? l10n.pinTooManyAttempts
+          : l10n.pinMismatch;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       if (res == PinVerify.locked) return false;
     }
@@ -395,7 +397,7 @@ class _RoomCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(room.name, style: t.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text(hasDevice ? 'on ${room.ssid}' : (needsDevice ? 'No device yet' : 'Shared room'),
+                      Text(hasDevice ? l10n.onSsid(room.ssid) : (needsDevice ? l10n.noDeviceYet : l10n.sharedRoom),
                           style: t.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),

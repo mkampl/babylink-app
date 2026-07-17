@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme.dart';
 
 /// One tile type for both discovered BLE devices and WiFi networks: a soft
@@ -98,8 +99,9 @@ class _Signal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return Semantics(
-      label: 'Signal $level of 4',
+      label: l10n.signalLevel(level),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,

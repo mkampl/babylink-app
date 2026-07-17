@@ -36,11 +36,11 @@ class _SuccessScreenState extends State<SuccessScreen> {
     return PopScope(
       canPop: false,
       child: StepScaffold(
-        title: 'Your BabyLink is connected ✓',
-        subtitle: 'It’s on “${s.ssid}” and ready to keep watch. 👶',
+        title: l10n.setupSuccessTitle,
+        subtitle: l10n.setupSuccessBody(s.ssid),
         showBack: false,
         bottom: PrimaryButton(
-          'Done',
+          l10n.done,
           icon: Icons.check_rounded,
           onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
         ),
@@ -74,7 +74,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
                   Expanded(
                     child: FilledButton.tonalIcon(
                       onPressed: () => SharePlus.instance.share(
-                          ShareParams(text: 'Join ${s.effectiveRoomName} on BabyLink 👶\n$link')),
+                          ShareParams(text: l10n.shareRoomTextSetup(link, s.effectiveRoomName))),
                       icon: const Icon(Icons.ios_share_rounded, size: 20),
                       label: Text(l10n.shareLink),
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
@@ -99,8 +99,8 @@ class _SuccessScreenState extends State<SuccessScreen> {
               ),
               Gap.hLg,
             ],
-            const TipBanner(
-              'You can unplug and move it wherever you need — it’ll reconnect on its own.',
+            TipBanner(
+              l10n.unplugNote,
               kind: TipKind.success,
             ),
           ],

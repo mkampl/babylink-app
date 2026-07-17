@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme.dart';
 import '../../widgets/entity_tile.dart';
 import '../../widgets/hero_badge.dart';
@@ -58,11 +59,15 @@ class _ScanScreenState extends State<ScanScreen> {
     });
     final ble = widget.session.ble;
     if (!await ble.ensurePermissions()) {
-      setState(() => _error = 'Bluetooth permission is needed to find your device.');
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      setState(() => _error = l10n.btPermissionNeeded);
       return;
     }
     if (!await ble.isBluetoothOn()) {
-      setState(() => _error = 'Bluetooth is off. Turn it on to find your BabyLink.');
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      setState(() => _error = l10n.btOff);
       return;
     }
     _isScanningSub?.cancel();
@@ -98,12 +103,13 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     final empty = _results.isEmpty;
     return StepScaffold(
-      title: _connecting ? 'Connecting…' : 'Looking for your BabyLink',
-      subtitle: _connecting ? null : 'Make sure it’s powered on and nearby.',
+      title: _connecting ? l10n.connecting : l10n.lookingForYourBabylink,
+      subtitle: _connecting ? null : l10n.ensurePoweredOn,
       bottom: (!_scanning && empty && !_connecting)
-          ? PrimaryButton('Scan again', icon: Icons.refresh_rounded, onPressed: _startScan)
+          ? PrimaryButton(l10n.scanAgain, icon: Icons.refresh_rounded, onPressed: _startScan)
           : null,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -114,7 +120,7 @@ class _ScanScreenState extends State<ScanScreen> {
           Semantics(
             liveRegion: true,
             child: Text(
-              _connecting ? 'Saying hello…' : (_scanning ? 'Searching…' : (empty ? '' : 'Found ${_results.length}')),
+              _connecting ? l10n.sayingHello : (_scanning ? l10n.searching : (empty ? '' : l10n.foundDevices(_results.length))),
               textAlign: TextAlign.center,
               style: t.labelMedium,
             ),
@@ -122,16 +128,16 @@ class _ScanScreenState extends State<ScanScreen> {
           Gap.hLg,
           if (_error != null) ...[TipBanner(_error!, kind: TipKind.danger), Gap.hMd],
           if (empty && !_scanning && !_connecting && _error == null)
-            const TipBanner(
-              'A couple of things to check:\n• It’s plugged in\n• Press the button on the device once\n• Keep your phone close by',
+            TipBanner(
+              l10n.scanChecklist,
               kind: TipKind.warning,
             ),
           if (!_connecting)
             for (final r in _results) ...[
               EntityTile(
                 icon: Icons.memory_rounded,
-                title: r.device.platformName.isEmpty ? 'BabyLink device' : r.device.platformName,
-                subtitle: 'Tap to connect',
+                title: r.device.platformName.isEmpty ? l10n.babylinkDevice : r.device.platformName,
+                subtitle: l10n.tapToConnect,
                 signal: bars(r.rssi),
                 onTap: () => _connect(r.device),
               ),

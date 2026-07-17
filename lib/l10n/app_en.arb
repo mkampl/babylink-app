@@ -36,7 +36,13 @@
   "enterRoomPin": "Enter room PIN",
   "couldNotOpenLink": "Could not open the link",
   "removeRoomTitle": "Remove {name}?",
-  "@removeRoomTitle": { "placeholders": { "name": { "type": "String" } } },
+  "@removeRoomTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "removeRoomBody": "This removes it from this phone. The room keeps running for anyone who already has the link.",
   "noRoomsYet": "No rooms yet",
   "noRoomsBody": "Create a room, then add your BabyLink device to it.",
@@ -48,9 +54,21 @@
   "nameOptional": "Name (optional)",
   "serverSettings": "Server settings",
   "manageRoomTitle": "Manage {name}",
-  "@manageRoomTitle": { "placeholders": { "name": { "type": "String" } } },
+  "@manageRoomTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "loadRoomSettingsFailed": "Couldn’t load room settings.\n{error}",
-  "@loadRoomSettingsFailed": { "placeholders": { "error": { "type": "String" } } },
+  "@loadRoomSettingsFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "devices": "Devices",
   "noDevicesConnected": "No devices are connected to this room right now.",
   "disconnect": "Disconnect",
@@ -70,10 +88,25 @@
   "ntfyServerHint": "https://ntfy.sh",
   "activity": "Activity",
   "activityLine": "{time}  {message}",
-  "@activityLine": { "placeholders": { "time": { "type": "String" }, "message": { "type": "String" } } },
+  "@activityLine": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "silenceAlarm": "Silence alarm",
   "batteryPercent": "{pct}%",
-  "@batteryPercent": { "placeholders": { "pct": { "type": "int" } } },
+  "@batteryPercent": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
   "backgroundWarning": "For reliable alerts, allow BabyLink to run unrestricted in the background.",
   "waitingForStream": "Audio and controls appear here as soon as a device is streaming to this room.",
   "sleep": "Sleep",
@@ -92,5 +125,164 @@
   "lookingForNetworks": "Looking for networks…",
   "ssidLabel": "WiFi network name (SSID)",
   "shareSuccessBody": "Share this link so others can join — as a parent (to listen) or a second baby device:",
-  "shareLink": "Share link"
+  "shareLink": "Share link",
+  "phone": "Phone",
+  "micRationale": "BabyLink needs the microphone to stream this phone as a baby unit.",
+  "openSettings": "Open settings",
+  "micStartFailed": "Couldn’t start the mic",
+  "micStartFailedBody": "Something went wrong grabbing the microphone. Try again.",
+  "babyMuted": "Muted",
+  "babyStreaming": "Streaming",
+  "listenersListening": "{count, plural, one{{count} person is listening} other{{count} people are listening}}",
+  "@listenersListening": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "waitingForListener": "Waiting for someone to listen…",
+  "babyShareHint": "Share this room so a parent phone (or the web) can listen in.",
+  "unmute": "Unmute",
+  "svcBabyChannel": "BabyLink streaming",
+  "svcBabyChannelDesc": "Streams this phone’s microphone to your room.",
+  "svcStreamingTo": "Streaming to {room}",
+  "svcBabyRunning": "This phone is acting as a baby unit",
+  "svcMonitorChannel": "BabyLink monitoring",
+  "svcMonitorChannelDesc": "Keeps listening to your BabyLink in the background.",
+  "svcListeningTo": "Listening to {baby}",
+  "svcMonitorRunning": "BabyLink is monitoring",
+  "svcAlertsChannel": "BabyLink alerts",
+  "svcAlertsChannelDesc": "Cry and connection alerts from the monitor.",
+  "alertCryingTitle": "{baby} is crying",
+  "alertCryingBody": "Loud sound detected",
+  "alertOfflineTitle": "{baby} went offline",
+  "alertOfflineBody": "No audio — the device dropped",
+  "shareRoomText": "Join {name} on BabyLink 👶\nOpen this link and choose Parent (to listen) or Baby (to add a camera/mic):\n{link}",
+  "shareRoomSubject": "BabyLink — {name}",
+  "pinTooManyAttempts": "Too many attempts — wait a moment and try again.",
+  "pinMismatch": "That PIN didn’t match.",
+  "onSsid": "on {ssid}",
+  "noDeviceYet": "No device yet",
+  "sharedRoom": "Shared room",
+  "uptimeLabel": "up {time}",
+  "deviceDisconnected": "Device disconnected",
+  "renamed": "Renamed",
+  "factoryResetTitle": "Factory-reset {name}?",
+  "factoryResetBody": "The device reboots into setup mode and forgets its WiFi + room. You’ll set it up again.",
+  "resetCommandSent": "Reset command sent",
+  "on": "On",
+  "off": "Off",
+  "pinOnDesc": "People who open the room link must enter this PIN. You (the owner) don’t.",
+  "pinOffDesc": "Add a PIN to stop anyone with the link from listening without it.",
+  "changePin": "Change PIN",
+  "setPin": "Set a PIN",
+  "pinRemoved": "PIN removed",
+  "pinLengthError": "PIN must be 6–8 digits",
+  "pinSaved": "PIN saved",
+  "testPushSent": "Test push sent",
+  "enterTopicFirst": "Enter a topic first",
+  "notificationsSaved": "Notifications saved",
+  "cardNoDevice": "No device yet — is it on?",
+  "cardWaitingDevice": "Waiting for a device",
+  "cardNoAudio": "No audio — reconnecting",
+  "cardCrying": "Crying!",
+  "cardListening": "Listening",
+  "cardMuted": "Muted",
+  "cardMovement": "Movement",
+  "cardAutoMuted": "Auto-muted (quiet)",
+  "exitSolo": "Exit solo",
+  "soloHint": "Solo — hear only this baby",
+  "listeningCountdown": "Listening {s}s",
+  "listenIn": "Listen in",
+  "mutedCountdown": "Muted {s}s",
+  "connecting": "Connecting…",
+  "reconnectingStatus": "Reconnecting…",
+  "waitingForBabyDevice": "Waiting for a baby device",
+  "last15min": "Last 15 min",
+  "last12h": "Last 12 h",
+  "noHistoryYet": "No history yet",
+  "noWakeUps": "no wake-ups",
+  "wakeUpsCount": "{count, plural, one{{count} wake-up (12 h)} other{{count} wake-ups (12 h)}}",
+  "@wakeUpsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepSummary": "{pct}% quiet · {wakeStr}",
+  "legendQuiet": "Quiet",
+  "legendMovement": "Movement",
+  "legendCrying": "Crying",
+  "legendNoData": "No data",
+  "serverConnected": "Connected — BabyLink {version} 🎉",
+  "serverChangeNote": "Existing rooms keep the server they were set up on. This only changes where NEW rooms and devices are created.",
+  "setupJoinTimeout": "Your BabyLink couldn’t join that network in time. Double-check the password, or try a stronger signal.",
+  "setupFailedGeneric": "Something went wrong setting up the device. Let’s try again.",
+  "settingUpTitle": "Setting up your BabyLink",
+  "stageCreatingRoom": "Creating your room",
+  "stageSavingWifi": "Saving WiFi",
+  "stageRestarting": "Restarting the device",
+  "stageJoining": "Joining your network",
+  "almostThere": "Almost there",
+  "setupDidntFinish": "The setup didn’t finish.",
+  "tryAgain": "Try again",
+  "pleaseTryAgain": "Please try again.",
+  "gateTitle": "One quick tap on the device",
+  "gateSecure": "This keeps your monitor secure.",
+  "gatePress": "Press the button on your BabyLink once. Its light will blink three times.",
+  "gateStillWaiting": "Still waiting — try pressing the button again.",
+  "nameThisRoom": "Name this room",
+  "nameRoomSub": "Give it a name you’ll recognise in your rooms list.",
+  "connectBabylink": "Connect BabyLink",
+  "nameRoomBlank": "You can leave it blank — we’ll name it after the device.",
+  "enterWifiPassword": "Enter the WiFi password",
+  "forSsid": "for “{ssid}”",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
+  "savedPasswordNote": "Using your saved password for this network. Tap the field to change it.",
+  "homeWifiNote": "This is your home WiFi password — the same one on your other devices.",
+  "wifiScanFailed": "Couldn’t scan for WiFi. Move the device closer and try again.",
+  "chooseWifi": "Choose your WiFi",
+  "chooseWifiSub": "Pick the network your BabyLink should join.",
+  "noNetworksFound": "No networks found. Move your BabyLink closer to your router, then refresh.",
+  "enterNetworkNameManually": "Enter network name manually",
+  "btPermissionNeeded": "Bluetooth permission is needed to find your device.",
+  "btOff": "Bluetooth is off. Turn it on to find your BabyLink.",
+  "lookingForYourBabylink": "Looking for your BabyLink",
+  "ensurePoweredOn": "Make sure it’s powered on and nearby.",
+  "scanAgain": "Scan again",
+  "sayingHello": "Saying hello…",
+  "searching": "Searching…",
+  "scanChecklist": "A couple of things to check:\n• It’s plugged in\n• Press the button on the device once\n• Keep your phone close by",
+  "babylinkDevice": "BabyLink device",
+  "tapToConnect": "Tap to connect",
+  "setupSuccessTitle": "Your BabyLink is connected ✓",
+  "setupSuccessBody": "It’s on “{ssid}” and ready to keep watch. 👶",
+  "shareRoomTextSetup": "Join {name} on BabyLink 👶\n{link}",
+  "unplugNote": "You can unplug and move it wherever you need — it’ll reconnect on its own.",
+  "welcomeTitle": "Set up your BabyLink",
+  "welcomeBody": "Let’s get your monitor connected to WiFi. It only takes a minute.",
+  "getStarted": "Get started",
+  "welcomePrivacy": "Private by design. Everything stays on your home network — nothing goes to the cloud.",
+  "signalLevel": "Signal {level} of 4",
+  "@signalLevel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "done": "Done",
+  "mute": "Mute",
+  "babyLive": "Live",
+  "foundDevices": "Found {count}",
+  "@foundDevices": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

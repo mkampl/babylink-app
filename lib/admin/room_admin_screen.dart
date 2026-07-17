@@ -153,12 +153,12 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
       title: Text(d.name),
       subtitle: Text([
         if (d.clientIp != null) d.clientIp,
-        'up ${_uptime(d.uptimeMs)}',
+        l10n.uptimeLabel(_uptime(d.uptimeMs)),
       ].join(' · ')),
       trailing: PopupMenuButton<String>(
         onSelected: (v) => switch (v) {
           'rename' => _renameDevice(d),
-          'disconnect' => _run(() => _api.disconnectDevice(d.id), 'Device disconnected'),
+          'disconnect' => _run(() => _api.disconnectDevice(d.id), l10n.deviceDisconnected),
           _ => _resetDevice(d),
         },
         itemBuilder: (_) => [
@@ -184,13 +184,13 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
         ],
       ),
     );
-    if (name != null && name.isNotEmpty) await _run(() => _api.renameDevice(d.id, name), 'Renamed');
+    if (name != null && name.isNotEmpty) await _run(() => _api.renameDevice(d.id, name), l10n.renamed);
   }
 
   Future<void> _resetDevice(EspDevice d) async {
-    final ok = await _confirm('Factory-reset ${d.name}?',
-        'The device reboots into setup mode and forgets its WiFi + room. You’ll set it up again.');
-    if (ok) await _run(() => _api.resetDevice(d.id), 'Reset command sent');
+    final l10n = AppLocalizations.of(context);
+    final ok = await _confirm(l10n.factoryResetTitle(d.name), l10n.factoryResetBody);
+    if (ok) await _run(() => _api.resetDevice(d.id), l10n.resetCommandSent);
   }
 
   // ---- PIN ----
@@ -206,26 +206,24 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
             Gap.wSm,
             Text(l10n.pin, style: t.titleLarge),
             const Spacer(),
-            Text(_hasPin ? 'On' : 'Off',
+            Text(_hasPin ? l10n.on : l10n.off,
                 style: t.labelLarge!.copyWith(color: _hasPin ? context.status.success : t.bodySmall!.color)),
           ]),
           Gap.hSm,
           Text(
-            _hasPin
-                ? 'People who open the room link must enter this PIN. You (the owner) don’t.'
-                : 'Add a PIN to stop anyone with the link from listening without it.',
+            _hasPin ? l10n.pinOnDesc : l10n.pinOffDesc,
             style: t.bodyMedium,
           ),
           Gap.hSm,
           Row(children: [
             FilledButton.tonal(
               onPressed: _setPin,
-              child: Text(_hasPin ? 'Change PIN' : 'Set a PIN'),
+              child: Text(_hasPin ? l10n.changePin : l10n.setPin),
             ),
             if (_hasPin) ...[
               Gap.wSm,
               TextButton(
-                onPressed: () => _run(() => _api.setPin(null), 'PIN removed'),
+                onPressed: () => _run(() => _api.setPin(null), l10n.pinRemoved),
                 child: Text(l10n.remove),
               ),
             ],
@@ -241,7 +239,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
     final pin = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(_hasPin ? 'Change PIN' : 'Set a PIN'),
+        title: Text(_hasPin ? l10n.changePin : l10n.setPin),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -259,10 +257,10 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
     );
     if (pin == null) return;
     if (pin.length < 6 || pin.length > 8) {
-      _snack('PIN must be 6–8 digits');
+      _snack(l10n.pinLengthError);
       return;
     }
-    await _run(() => _api.setPin(pin), 'PIN saved');
+    await _run(() => _api.setPin(pin), l10n.pinSaved);
   }
 
   // ---- ntfy ----
@@ -325,7 +323,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
             ),
             Gap.wSm,
             TextButton(
-              onPressed: () => _run(() => _api.testNtfy(), 'Test push sent'),
+              onPressed: () => _run(() => _api.testNtfy(), l10n.testPushSent),
               child: Text(l10n.sendTest),
             ),
           ]),
@@ -335,8 +333,9 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
   }
 
   Future<void> _saveNtfy() async {
+    final l10n = AppLocalizations.of(context);
     if (_topic.text.trim().isEmpty) {
-      _snack('Enter a topic first');
+      _snack(l10n.enterTopicFirst);
       return;
     }
     setState(() => _savingNtfy = true);
@@ -344,7 +343,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
     _ntfy.server = _server.text.trim().isEmpty ? null : _server.text.trim();
     try {
       await _api.setNtfy(_ntfy);
-      _snack('Notifications saved');
+      _snack(l10n.notificationsSaved);
     } catch (e) {
       _snack(e.toString().replaceFirst('Exception: ', ''));
     } finally {

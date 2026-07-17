@@ -59,7 +59,7 @@ class _BabyScreenState extends State<BabyScreen> {
       if (mounted) setState(() => _state = _State.denied);
       return;
     }
-    BabyService.configure();
+    await BabyService.configure();
     await BabyService.start(widget.room.name);
     await WakelockPlus.enable();
 
@@ -156,12 +156,12 @@ class _BabyScreenState extends State<BabyScreen> {
 
     if (_state == _State.denied) {
       return _centered(context, '🎤', 'Microphone needed',
-          'BabyLink needs the microphone to stream this phone as a baby unit.',
-          action: PrimaryButton('Open settings', icon: Icons.settings_rounded, onPressed: openAppSettings));
+          l10n.micRationale,
+          action: PrimaryButton(l10n.openSettings, icon: Icons.settings_rounded, onPressed: openAppSettings));
     }
     if (_state == _State.error) {
-      return _centered(context, '⚠️', 'Couldn’t start the mic',
-          'Something went wrong grabbing the microphone. Try again.');
+      return _centered(context, '⚠️', l10n.micStartFailed,
+          l10n.micStartFailedBody);
     }
     if (_state == _State.starting) {
       return _centered(context, '🎤', 'Starting…', 'Getting the microphone ready.');
@@ -177,15 +177,15 @@ class _BabyScreenState extends State<BabyScreen> {
         HeroBadge(emoji: _muted ? '🔇' : '🎤', pulse: !_muted && listening, size: 132),
         Gap.hLg,
         Text(
-          _muted ? 'Muted' : (listening ? 'Streaming' : 'Live'),
+          _muted ? l10n.babyMuted : (listening ? l10n.babyStreaming : l10n.babyLive),
           textAlign: TextAlign.center,
           style: t.headlineSmall!.copyWith(color: _muted ? s.danger : s.success),
         ),
         Gap.hSm,
         Text(
           listening
-              ? '$_parents ${_parents == 1 ? "person is" : "people are"} listening'
-              : 'Waiting for someone to listen…',
+              ? l10n.listenersListening(_parents)
+              : l10n.waitingForListener,
           textAlign: TextAlign.center,
           style: t.bodyMedium,
         ),
@@ -201,10 +201,9 @@ class _BabyScreenState extends State<BabyScreen> {
         ),
         const Spacer(),
         if (!listening)
-          const Padding(
-            padding: EdgeInsets.only(bottom: Gap.md),
-            child: TipBanner('Share this room so a parent phone (or the web) can listen in.',
-                kind: TipKind.info),
+          Padding(
+            padding: const EdgeInsets.only(bottom: Gap.md),
+            child: TipBanner(l10n.babyShareHint, kind: TipKind.info),
           ),
         Row(
           children: [
@@ -212,7 +211,7 @@ class _BabyScreenState extends State<BabyScreen> {
               child: FilledButton.tonalIcon(
                 onPressed: _toggleMute,
                 icon: Icon(_muted ? Icons.mic_off_rounded : Icons.mic_rounded),
-                label: Text(_muted ? 'Unmute' : 'Mute'),
+                label: Text(_muted ? l10n.unmute : l10n.mute),
                 style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
               ),
             ),

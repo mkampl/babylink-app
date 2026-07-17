@@ -39,12 +39,12 @@ class SleepTimeline extends StatelessWidget {
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: Gap.sm),
         title: Text(l10n.sleep, style: t.labelLarge),
-        subtitle: Text(_summaryLine(sum15, wakes12), style: t.labelMedium!.copyWith(color: muted)),
+        subtitle: Text(_summaryLine(l10n, sum15, wakes12), style: t.labelMedium!.copyWith(color: muted)),
         children: [
-          _label(context, 'Last 15 min'),
+          _label(context, l10n.last15min),
           _bar(detail, palette),
           Gap.hSm,
-          _label(context, 'Last 12 h'),
+          _label(context, l10n.last12h),
           _bar(history, palette),
           Gap.hSm,
           _legend(context, palette),
@@ -53,12 +53,12 @@ class SleepTimeline extends StatelessWidget {
     );
   }
 
-  String _summaryLine(SleepSlot sum, int wakes) {
+  String _summaryLine(AppLocalizations l10n, SleepSlot sum, int wakes) {
     final total = sum.total;
-    if (total == 0) return 'No history yet';
+    if (total == 0) return l10n.noHistoryYet;
     final quietPct = (sum.g / total * 100).round();
-    final wakeStr = wakes == 0 ? 'no wake-ups' : '$wakes wake-up${wakes == 1 ? '' : 's'} (12 h)';
-    return '$quietPct% quiet · $wakeStr';
+    final wakeStr = wakes == 0 ? l10n.noWakeUps : l10n.wakeUpsCount(wakes);
+    return l10n.sleepSummary(quietPct, wakeStr);
   }
 
   Widget _label(BuildContext context, String text) => Padding(
@@ -79,6 +79,7 @@ class SleepTimeline extends StatelessWidget {
       );
 
   Widget _legend(BuildContext context, _Palette p) {
+    final l10n = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme.labelSmall!;
     Widget dot(Color c, String s) => Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
@@ -86,10 +87,10 @@ class SleepTimeline extends StatelessWidget {
           Text(s, style: t),
         ]);
     return Wrap(spacing: Gap.md, runSpacing: 4, children: [
-      dot(p.green, 'Quiet'),
-      dot(p.yellow, 'Movement'),
-      dot(p.red, 'Crying'),
-      dot(p.none, 'No data'),
+      dot(p.green, l10n.legendQuiet),
+      dot(p.yellow, l10n.legendMovement),
+      dot(p.red, l10n.legendCrying),
+      dot(p.none, l10n.legendNoData),
     ]);
   }
 }

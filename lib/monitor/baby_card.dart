@@ -34,6 +34,7 @@ class BabyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme;
     final s = context.status;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -48,23 +49,23 @@ class BabyCard extends StatelessWidget {
     // already connected to the room — just waiting for a device. Never an alarm.
     final (statusText, statusColor) = baby.pending
         ? (baby.waitedTooLong
-            ? ('No device yet — is it on?', muted)
-            : ('Waiting for a device', muted))
+            ? (l10n.cardNoDevice, muted)
+            : (l10n.cardWaitingDevice, muted))
         : baby.health == AudioHealth.stalled
-            ? ('No audio — reconnecting', s.danger)
+            ? (l10n.cardNoAudio, s.danger)
             : crying
-                ? ('Crying!', s.danger)
+                ? (l10n.cardCrying, s.danger)
                 : listenActive
-                    ? ('Listening', s.success) // manual listen-in or crying hold
+                    ? (l10n.cardListening, s.success) // manual listen-in or crying hold
                     : muteActive
-                        ? ('Muted', muted)
+                        ? (l10n.cardMuted, muted)
                         : mutedNow
                             // Distinguish the brief "movement, not yet unmuted"
                             // window (yellow) from true quiet, like the web.
                             ? (bandFor(level) == Band.yellow
-                                ? ('Movement', muted)
-                                : ('Auto-muted (quiet)', muted))
-                            : ('Listening', s.success);
+                                ? (l10n.cardMovement, muted)
+                                : (l10n.cardAutoMuted, muted))
+                            : (l10n.cardListening, s.success);
 
     return Card(
       child: Padding(
@@ -90,7 +91,7 @@ class BabyCard extends StatelessWidget {
                     onPressed: onSolo,
                     icon: const Icon(Icons.headset_rounded, size: 20),
                     color: soloActive ? Theme.of(context).colorScheme.primary : muted,
-                    tooltip: soloActive ? 'Exit solo' : 'Solo — hear only this baby',
+                    tooltip: soloActive ? l10n.exitSolo : l10n.soloHint,
                     visualDensity: VisualDensity.compact,
                     style: soloActive
                         ? IconButton.styleFrom(backgroundColor: s.infoBg)
@@ -186,6 +187,7 @@ class BabyCard extends StatelessWidget {
   /// Two momentary actions. Highlighted with a seconds countdown while their
   /// hold is active, then they revert — auto-listen (VOX) is the resting state.
   Widget _actions(BuildContext context, DateTime now, bool listenActive, bool muteActive) {
+    final l10n = AppLocalizations.of(context);
     final listenLeft = baby.listenHoldUntil.difference(now).inSeconds + 1;
     final muteLeft = baby.muteHoldUntil.difference(now).inSeconds + 1;
     return Row(
@@ -194,7 +196,7 @@ class BabyCard extends StatelessWidget {
           child: _actionButton(
             context,
             icon: Icons.volume_up_rounded,
-            label: listenActive ? 'Listening ${listenLeft.clamp(1, 99)}s' : 'Listen in',
+            label: listenActive ? l10n.listeningCountdown(listenLeft.clamp(1, 99)) : l10n.listenIn,
             active: listenActive,
             onTap: onListen,
           ),
@@ -204,7 +206,7 @@ class BabyCard extends StatelessWidget {
           child: _actionButton(
             context,
             icon: Icons.volume_off_rounded,
-            label: muteActive ? 'Muted ${muteLeft.clamp(1, 99)}s' : 'Mute',
+            label: muteActive ? l10n.mutedCountdown(muteLeft.clamp(1, 99)) : l10n.mute,
             active: muteActive,
             onTap: onMute,
           ),
