@@ -92,8 +92,10 @@ class _ScanScreenState extends State<ScanScreen> {
         builder: (_) => needsGate ? GateScreen(session: s) : PickWifiScreen(session: s),
       ));
     } catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       setState(() {
-        _error = "Couldn't connect. Move closer and try again.";
+        _error = l10n.scanConnectFailed;
         _connecting = false;
       });
       _startScan();

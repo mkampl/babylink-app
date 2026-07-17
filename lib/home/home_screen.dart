@@ -288,8 +288,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
                 .then((_) => _load()),
-            icon: const Icon(Icons.dns_rounded),
-            tooltip: l10n.serverSettings,
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: l10n.settings,
           ),
         ],
       ),
@@ -388,7 +388,7 @@ class _RoomCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(Radii.sm)),
+                      color: cs.secondary.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(Radii.sm)),
                   child: const Center(child: Text('👶', style: TextStyle(fontSize: 22))),
                 ),
                 Gap.wMd,
@@ -468,7 +468,7 @@ class _RoomCard extends StatelessWidget {
                 Gap.wSm,
                 _iconAction(context, Icons.copy_rounded, l10n.copy, onCopy),
                 Gap.wSm,
-                _iconAction(context, Icons.open_in_new_rounded, 'Open', onOpen),
+                _iconAction(context, Icons.open_in_new_rounded, l10n.openLink, onOpen),
               ],
             ),
           ],

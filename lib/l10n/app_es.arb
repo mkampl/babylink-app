@@ -218,5 +218,11 @@
   "done": "Hecho",
   "mute": "Silenciar",
   "babyLive": "En directo",
-  "foundDevices": "{count} encontrados"
+  "foundDevices": "{count} encontrados",
+  "settings": "Ajustes",
+  "openLink": "Abrir",
+  "micNeeded": "Micrófono necesario",
+  "babyStarting": "Iniciando…",
+  "micGettingReady": "Preparando el micrófono.",
+  "scanConnectFailed": "No se pudo conectar. Acércate e inténtalo de nuevo."
 }

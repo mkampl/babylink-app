@@ -218,5 +218,11 @@
   "done": "Fertig",
   "mute": "Stumm schalten",
   "babyLive": "Live",
-  "foundDevices": "{count} gefunden"
+  "foundDevices": "{count} gefunden",
+  "settings": "Einstellungen",
+  "openLink": "Öffnen",
+  "micNeeded": "Mikrofon erforderlich",
+  "babyStarting": "Wird gestartet…",
+  "micGettingReady": "Mikrofon wird vorbereitet.",
+  "scanConnectFailed": "Verbindung fehlgeschlagen. Geh näher heran und versuch es erneut."
 }

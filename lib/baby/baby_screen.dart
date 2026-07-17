@@ -155,7 +155,7 @@ class _BabyScreenState extends State<BabyScreen> {
     final l10n = AppLocalizations.of(context);
 
     if (_state == _State.denied) {
-      return _centered(context, '🎤', 'Microphone needed',
+      return _centered(context, '🎤', l10n.micNeeded,
           l10n.micRationale,
           action: PrimaryButton(l10n.openSettings, icon: Icons.settings_rounded, onPressed: openAppSettings));
     }
@@ -164,7 +164,7 @@ class _BabyScreenState extends State<BabyScreen> {
           l10n.micStartFailedBody);
     }
     if (_state == _State.starting) {
-      return _centered(context, '🎤', 'Starting…', 'Getting the microphone ready.');
+      return _centered(context, '🎤', l10n.babyStarting, l10n.micGettingReady);
     }
 
     // streaming

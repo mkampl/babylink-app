@@ -218,5 +218,11 @@
   "done": "Tamam",
   "mute": "Sustur",
   "babyLive": "Canlı",
-  "foundDevices": "{count} bulundu"
+  "foundDevices": "{count} bulundu",
+  "settings": "Ayarlar",
+  "openLink": "Aç",
+  "micNeeded": "Mikrofon gerekli",
+  "babyStarting": "Başlatılıyor…",
+  "micGettingReady": "Mikrofon hazırlanıyor.",
+  "scanConnectFailed": "Bağlanılamadı. Yaklaşıp yeniden dene."
 }

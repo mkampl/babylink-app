@@ -111,11 +111,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final t = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.server)),
+      appBar: AppBar(title: Text(l10n.settings)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(Gap.lg),
           children: [
+            _LanguageSection(t: t, l10n: l10n),
+            Gap.hXl,
+            const Divider(height: 1),
+            Gap.hXl,
             Text(l10n.babylinkServer, style: t.titleLarge),
             Gap.hSm,
             Text(
@@ -172,8 +176,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               l10n.serverChangeNote,
               kind: TipKind.info,
             ),
-            Gap.hLg,
-            _LanguageSection(t: t, l10n: l10n),
           ],
         ),
       ),
@@ -198,6 +200,13 @@ class _LanguageSection extends StatelessWidget {
     (code: 'tr', label: 'Türkçe'),
   ];
 
+  // The language Auto resolves to on this device (the system locale, clamped to
+  // a supported language). Shown as "Auto (DE)" like the web switcher.
+  static String _systemCode() {
+    final code = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    return (_languages.any((l) => l.code == code) ? code : 'en').toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -220,12 +229,12 @@ class _LanguageSection extends StatelessWidget {
                     items: [
                       DropdownMenuItem<String?>(
                         value: null,
-                        child: Text(l10n.languageAuto),
+                        child: Text('${l10n.languageAuto} (${_systemCode()})'),
                       ),
                       for (final lang in _languages)
                         DropdownMenuItem<String?>(
                           value: lang.code,
-                          child: Text(lang.label),
+                          child: Text('${lang.label} · ${lang.code!.toUpperCase()}'),
                         ),
                     ],
                     onChanged: (v) => localeController.setLocale(v),

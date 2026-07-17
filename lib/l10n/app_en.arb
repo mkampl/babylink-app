@@ -284,5 +284,11 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settings": "Settings",
+  "openLink": "Open",
+  "micNeeded": "Microphone needed",
+  "babyStarting": "Starting…",
+  "micGettingReady": "Getting the microphone ready.",
+  "scanConnectFailed": "Couldn't connect. Move closer and try again."
 }
