@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../battery_status.dart';
 import '../l10n/app_localizations.dart';
+import '../monitor/baby_stream.dart' show Band, bandFor;
 import '../store/app_store.dart';
 import '../theme.dart';
 import '../widgets/hero_badge.dart';
@@ -196,7 +197,12 @@ class _BabyScreenState extends State<BabyScreen> {
             value: meter,
             minHeight: 12,
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            valueColor: AlwaysStoppedAnimation(meter > 0.5 ? s.warning : s.success),
+            // Same green/yellow/red bands as the parent monitor (shared bandFor).
+            valueColor: AlwaysStoppedAnimation(switch (bandFor(meter)) {
+              Band.red => s.danger,
+              Band.yellow => s.warning,
+              Band.green => s.success,
+            }),
           ),
         ),
         const Spacer(),

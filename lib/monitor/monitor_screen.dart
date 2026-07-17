@@ -164,35 +164,18 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   Widget _reliabilityTip(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final s = context.status;
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: s.warningBg,
-          borderRadius: Radii.rMd,
-          border: Border.all(color: s.warning.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.battery_alert_rounded, color: s.warning, size: 22),
-            Gap.wMd,
-            Expanded(
-              child: Text(
-                l10n.backgroundWarning,
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: s.warning, height: 1.3),
-              ),
-            ),
-            Gap.wSm,
-            TextButton(
-              onPressed: () async {
-                await MonitorService.openBatterySettings();
-                if (mounted) _hardenBackground(); // re-check when they come back
-              },
-              child: Text(l10n.fix),
-            ),
-          ],
+      child: TipBanner(
+        l10n.backgroundWarning,
+        kind: TipKind.warning,
+        icon: Icons.battery_alert_rounded,
+        trailing: TextButton(
+          onPressed: () async {
+            await MonitorService.openBatterySettings();
+            if (mounted) _hardenBackground(); // re-check when they come back
+          },
+          child: Text(l10n.fix),
         ),
       ),
     );
