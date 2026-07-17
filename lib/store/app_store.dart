@@ -120,6 +120,25 @@ class AppStore {
     await _storage.write(key: _kRooms, value: jsonEncode(rooms.map((r) => r.toJson()).toList()));
   }
 
+  /// Rename a saved room. The name is local-only (it's how the room shows in
+  /// this phone's list and monitor title), so this touches only local storage.
+  Future<void> renameRoom(String roomId, String newName) async {
+    final rooms = await loadRooms();
+    final i = rooms.indexWhere((r) => r.roomId == roomId);
+    if (i < 0) return;
+    final r = rooms[i];
+    rooms[i] = SavedRoom(
+      roomId: r.roomId,
+      ownerToken: r.ownerToken,
+      name: newName,
+      ssid: r.ssid,
+      serverHost: r.serverHost,
+      serverPort: r.serverPort,
+      createdAt: r.createdAt,
+    );
+    await _storage.write(key: _kRooms, value: jsonEncode(rooms.map((e) => e.toJson()).toList()));
+  }
+
   // ---- Saved WiFi credentials (ssid -> password) ----
   Future<Map<String, String>> _wifiMap() async {
     final raw = await _storage.read(key: _kWifi);

@@ -8,7 +8,7 @@ import '../../widgets/hero_badge.dart';
 import '../../widgets/step_scaffold.dart';
 import '../../widgets/tip_banner.dart';
 import '../setup_session.dart';
-import 'applying_screen.dart';
+import 'name_room_screen.dart';
 import 'password_screen.dart';
 
 class PickWifiScreen extends StatefulWidget {
@@ -68,7 +68,7 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
     s.network = n;
     s.manualSsid = null;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => n.secure ? PasswordScreen(session: s) : ApplyingScreen(session: s),
+      builder: (_) => n.secure ? PasswordScreen(session: s) : NameRoomScreen(session: s),
     ));
   }
 

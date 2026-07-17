@@ -290,5 +290,11 @@
   "micNeeded": "Microphone needed",
   "babyStarting": "Starting…",
   "micGettingReady": "Getting the microphone ready.",
-  "scanConnectFailed": "Couldn't connect. Move closer and try again."
+  "scanConnectFailed": "Couldn't connect. Move closer and try again.",
+  "renameRoom": "Rename room",
+  "nameThisDevice": "Name this device",
+  "nameDeviceSub": "Give it the baby's name, so you can tell which is which on the monitor.",
+  "babyNameLabel": "Baby's name",
+  "babyNameHint": "e.g. Emma",
+  "nameDeviceTip": "This device will show under this name on the monitor."
 }

@@ -224,5 +224,11 @@
   "micNeeded": "Mikrofon erforderlich",
   "babyStarting": "Wird gestartet…",
   "micGettingReady": "Mikrofon wird vorbereitet.",
-  "scanConnectFailed": "Verbindung fehlgeschlagen. Geh näher heran und versuch es erneut."
+  "scanConnectFailed": "Verbindung fehlgeschlagen. Geh näher heran und versuch es erneut.",
+  "renameRoom": "Raum umbenennen",
+  "nameThisDevice": "Dieses Gerät benennen",
+  "nameDeviceSub": "Gib den Namen des Babys ein, damit du sie im Monitor unterscheiden kannst.",
+  "babyNameLabel": "Name des Babys",
+  "babyNameHint": "z. B. Emma",
+  "nameDeviceTip": "Dieses Gerät erscheint unter diesem Namen im Monitor."
 }

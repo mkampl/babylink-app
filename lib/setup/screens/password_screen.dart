@@ -8,7 +8,6 @@ import '../../widgets/primary_button.dart';
 import '../../widgets/step_scaffold.dart';
 import '../../widgets/tip_banner.dart';
 import '../setup_session.dart';
-import 'applying_screen.dart';
 import 'name_room_screen.dart';
 
 class PasswordScreen extends StatefulWidget {
@@ -51,7 +50,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
     // Otherwise name the new room first.
     final s = widget.session;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => s.targetRoom != null ? ApplyingScreen(session: s) : NameRoomScreen(session: s),
+      builder: (_) => NameRoomScreen(session: s),
     ));
   }
 

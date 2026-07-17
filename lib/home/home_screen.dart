@@ -251,6 +251,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _rename(SavedRoom r) async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController(text: r.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.renameRoom),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          decoration: InputDecoration(labelText: l10n.roomName, hintText: l10n.roomNameHint),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.save)),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty && name != r.name) {
+      await AppStore.instance.renameRoom(r.roomId, name);
+      _load();
+    }
+  }
+
   Future<void> _delete(SavedRoom r) async {
     final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
@@ -319,6 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onAddDevice: () => _addDevice(rooms[i]),
                       onUseAsBaby: () => _useAsBaby(rooms[i]),
                       onManage: () => _manage(rooms[i]),
+                      onRename: () => _rename(rooms[i]),
                       onDelete: () => _delete(rooms[i]),
                     ),
                   ),
@@ -352,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _RoomCard extends StatelessWidget {
   final SavedRoom room;
-  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onUseAsBaby, onManage, onDelete;
+  final VoidCallback onListen, onShare, onCopy, onOpen, onAddDevice, onUseAsBaby, onManage, onRename, onDelete;
   const _RoomCard({
     required this.room,
     required this.onListen,
@@ -362,6 +390,7 @@ class _RoomCard extends StatelessWidget {
     required this.onAddDevice,
     required this.onUseAsBaby,
     required this.onManage,
+    required this.onRename,
     required this.onDelete,
   });
 
@@ -407,12 +436,14 @@ class _RoomCard extends StatelessWidget {
                   onSelected: (v) => switch (v) {
                     'add' => onAddDevice(),
                     'baby' => onUseAsBaby(),
+                    'rename' => onRename(),
                     'manage' => onManage(),
                     _ => onDelete(),
                   },
                   itemBuilder: (_) => [
                     PopupMenuItem(value: 'add', child: Text(l10n.addADevice)),
                     PopupMenuItem(value: 'baby', child: Text(l10n.useThisPhoneAsBaby)),
+                    PopupMenuItem(value: 'rename', child: Text(l10n.renameRoom)),
                     // Only the owner (holds the token) can manage the room.
                     if (room.ownerToken != null)
                       PopupMenuItem(value: 'manage', child: Text(l10n.manageRoom)),

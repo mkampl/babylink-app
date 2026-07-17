@@ -224,5 +224,11 @@
   "micNeeded": "Micrófono necesario",
   "babyStarting": "Iniciando…",
   "micGettingReady": "Preparando el micrófono.",
-  "scanConnectFailed": "No se pudo conectar. Acércate e inténtalo de nuevo."
+  "scanConnectFailed": "No se pudo conectar. Acércate e inténtalo de nuevo.",
+  "renameRoom": "Renombrar sala",
+  "nameThisDevice": "Nombra este dispositivo",
+  "nameDeviceSub": "Ponle el nombre del bebé para distinguirlos en el monitor.",
+  "babyNameLabel": "Nombre del bebé",
+  "babyNameHint": "p. ej. Emma",
+  "nameDeviceTip": "Este dispositivo aparecerá con este nombre en el monitor."
 }

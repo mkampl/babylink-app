@@ -224,5 +224,11 @@
   "micNeeded": "Mikrofon gerekli",
   "babyStarting": "Başlatılıyor…",
   "micGettingReady": "Mikrofon hazırlanıyor.",
-  "scanConnectFailed": "Bağlanılamadı. Yaklaşıp yeniden dene."
+  "scanConnectFailed": "Bağlanılamadı. Yaklaşıp yeniden dene.",
+  "renameRoom": "Odayı yeniden adlandır",
+  "nameThisDevice": "Bu cihaza ad ver",
+  "nameDeviceSub": "Bebeğin adını gir ki monitörde hangisinin hangisi olduğunu ayırt edebilesin.",
+  "babyNameLabel": "Bebeğin adı",
+  "babyNameHint": "örn. Emma",
+  "nameDeviceTip": "Bu cihaz monitörde bu adla görünecek."
 }

@@ -23,6 +23,8 @@ class SetupSession {
   bool manualSecure = true;
   String? password;
   String roomName = ''; // what the user calls this room (home + monitor title)
+  String babyName = ''; // per-device name when adding to an EXISTING room, so
+  // multiple devices in one room are told apart on the monitor.
   RoomCreation? room; // created on the server (only in the create-room flow)
 
   /// The room id we provision the device with — the existing room, or the
@@ -55,9 +57,15 @@ class SetupSession {
     return tail.isEmpty ? 'BabyLink' : 'BabyLink $tail';
   }
 
+  /// The name the device reports to the monitor. A per-device baby name when
+  /// one was given (adding a device to an existing room); otherwise the room
+  /// name (the create-room flow, where device == room).
+  String get provisionDeviceName =>
+      babyName.trim().isNotEmpty ? babyName.trim() : effectiveRoomName;
+
   /// Build the config JSON the ESP expects (cfg_v3 shape).
   Map<String, dynamic> buildConfig() => {
-        'deviceName': effectiveRoomName,
+        'deviceName': provisionDeviceName,
         'activeServer': 0,
         'wifi': [
           {'ssid': ssid, 'password': password ?? ''}
