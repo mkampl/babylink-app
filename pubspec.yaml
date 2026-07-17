@@ -117,15 +117,15 @@ flutter_launcher_icons:
   ios: false
   image_path: "assets/branding/icon.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#1E2A44"
+  adaptive_icon_background: "#182339"
   adaptive_icon_foreground: "assets/branding/icon_foreground.png"
 
 # Splash screen shown while the app boots.
 flutter_native_splash:
-  color: "#1E2A44"
+  color: "#182339"
   image: assets/branding/icon_foreground.png
   android_12:
-    color: "#1E2A44"
+    color: "#182339"
     image: assets/branding/icon_foreground.png
   android: true
   ios: false
