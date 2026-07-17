@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../store/app_store.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
@@ -56,6 +57,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return StepScaffold(
       title: 'Enter the WiFi password',
       subtitle: 'for “${widget.session.ssid}”',
@@ -82,7 +84,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
             autofillHints: const [AutofillHints.password],
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
-              labelText: 'Password',
+              labelText: l10n.password,
               suffixIcon: Semantics(
                 label: _hidden ? 'Show password' : 'Hide password',
                 child: IconButton(

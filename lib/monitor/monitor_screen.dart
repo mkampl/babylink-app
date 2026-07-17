@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../battery_status.dart';
+import '../l10n/app_localizations.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
 import '../widgets/hero_badge.dart';
@@ -80,6 +81,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   }
 
   Widget _body(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final babies = _conn.babies;
 
     return Column(
@@ -95,7 +97,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
             child: FilledButton.icon(
               onPressed: _conn.silenceAlarms,
               icon: const Icon(Icons.notifications_active_rounded),
-              label: const Text('Silence alarm'),
+              label: Text(l10n.silenceAlarm),
               style: FilledButton.styleFrom(
                 backgroundColor: context.status.danger,
                 minimumSize: const Size.fromHeight(52),
@@ -140,6 +142,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   /// This phone is the monitor — show its own charge so the parent notices
   /// their device running low (they're often listening for hours on battery).
   Widget _ownBatteryChip(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final b = _ownBattery!;
     final s = context.status;
     final color = b.level <= 15 ? s.danger : (b.level <= 30 ? s.warning : null);
@@ -153,13 +156,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
         children: [
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 3),
-          Text('${b.level}%', style: Theme.of(context).textTheme.labelLarge!.copyWith(color: color)),
+          Text(l10n.batteryPercent(b.level), style: Theme.of(context).textTheme.labelLarge!.copyWith(color: color)),
         ],
       ),
     );
   }
 
   Widget _reliabilityTip(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final s = context.status;
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, 0),
@@ -176,7 +180,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
             Gap.wMd,
             Expanded(
               child: Text(
-                'For reliable alerts, allow BabyLink to run unrestricted in the background.',
+                l10n.backgroundWarning,
                 style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: s.warning, height: 1.3),
               ),
             ),
@@ -186,7 +190,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                 await MonitorService.openBatterySettings();
                 if (mounted) _hardenBackground(); // re-check when they come back
               },
-              child: const Text('Fix'),
+              child: Text(l10n.fix),
             ),
           ],
         ),
@@ -195,6 +199,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   }
 
   Widget _waiting(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme;
     final connecting = _conn.link != LinkState.listening;
     return Padding(
@@ -208,7 +213,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
           Text(connecting ? 'Connecting…' : 'Waiting for a baby device',
               textAlign: TextAlign.center, style: t.headlineSmall),
           Gap.hSm,
-          Text('Audio and controls appear here as soon as a device is streaming to this room.',
+          Text(l10n.waitingForStream,
               textAlign: TextAlign.center, style: t.bodyMedium),
         ],
       ),

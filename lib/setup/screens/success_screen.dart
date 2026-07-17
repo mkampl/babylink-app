@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
 import '../../widgets/primary_button.dart';
@@ -30,6 +31,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
     final link = s.roomLink;
     final cs = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
 
     return PopScope(
       canPop: false,
@@ -49,7 +51,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
             HeroBadge(icon: Icons.check_rounded, tint: context.status.success, size: 120),
             Gap.hLg,
             if (link != null) ...[
-              Text('Share this link so others can join — as a parent (to listen) or a second baby device:', style: t.bodyLarge),
+              Text(l10n.shareSuccessBody, style: t.bodyLarge),
               Gap.hSm,
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -74,7 +76,7 @@ class _SuccessScreenState extends State<SuccessScreen> {
                       onPressed: () => SharePlus.instance.share(
                           ShareParams(text: 'Join ${s.effectiveRoomName} on BabyLink 👶\n$link')),
                       icon: const Icon(Icons.ios_share_rounded, size: 20),
-                      label: const Text('Share link'),
+                      label: Text(l10n.shareLink),
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                     ),
                   ),
@@ -85,11 +87,11 @@ class _SuccessScreenState extends State<SuccessScreen> {
                         await Clipboard.setData(ClipboardData(text: link));
                         if (context.mounted) {
                           ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(content: Text('Link copied')));
+                              .showSnackBar(SnackBar(content: Text(l10n.linkCopied)));
                         }
                       },
                       icon: const Icon(Icons.copy_rounded, size: 20),
-                      label: const Text('Copy'),
+                      label: Text(l10n.copy),
                       style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                     ),
                   ),

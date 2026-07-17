@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
 import '../../widgets/primary_button.dart';
@@ -42,6 +43,7 @@ class _NameRoomScreenState extends State<NameRoomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return StepScaffold(
       title: 'Name this room',
       subtitle: 'Give it a name you’ll recognise in your rooms list.',
@@ -62,9 +64,9 @@ class _NameRoomScreenState extends State<NameRoomScreen> {
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.go,
             onSubmitted: (_) => _submit(),
-            decoration: const InputDecoration(
-              labelText: 'Room name',
-              hintText: 'Nursery',
+            decoration: InputDecoration(
+              labelText: l10n.roomName,
+              hintText: l10n.roomNameHint,
             ),
           ),
           Gap.hMd,

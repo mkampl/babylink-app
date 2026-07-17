@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme.dart';
 import 'baby_stream.dart';
 import 'sleep_timeline.dart';
@@ -126,6 +127,7 @@ class BabyCard extends StatelessWidget {
 
   /// A collapsible per-baby event log (newest first), mirroring the web.
   Widget _activityLog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     String hhmm(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
@@ -135,8 +137,8 @@ class BabyCard extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: Gap.sm),
-        title: Text('Activity', style: t.labelLarge),
-        subtitle: Text('${hhmm(latest.time)}  ${latest.message}',
+        title: Text(l10n.activity, style: t.labelLarge),
+        subtitle: Text(l10n.activityLine(hhmm(latest.time), latest.message),
             style: t.labelMedium!.copyWith(color: muted), maxLines: 1, overflow: TextOverflow.ellipsis),
         children: [
           for (final e in baby.activityLog.take(15))

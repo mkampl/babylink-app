@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../admin/room_admin.dart';
 import '../admin/room_admin_screen.dart';
 import '../baby/baby_screen.dart';
+import '../l10n/app_localizations.dart';
 import '../monitor/monitor_screen.dart';
 import '../server/babylink_server.dart';
 import '../settings/settings_screen.dart';
@@ -40,21 +41,22 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Create a room (name only — the server makes the id), like the web. Adding
   /// a device is a separate step from the room's card.
   Future<void> _createRoom() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: 'Nursery');
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Create a room'),
+        title: Text(l10n.createARoom),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Room name', hintText: 'Nursery'),
+          decoration: InputDecoration(labelText: l10n.roomName, hintText: l10n.roomNameHint),
           onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Create')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.create)),
         ],
       ),
     );
@@ -75,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Couldn’t create the room. Check your connection.')));
+            .showSnackBar(SnackBar(content: Text(l10n.createRoomFailed)));
       }
     }
   }
@@ -91,30 +93,31 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Add a room you already have (paste a link or 32-char room id). Lets a
   /// second phone join to listen without running setup.
   Future<void> _addByLink() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     final nameController = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add a room'),
+        title: Text(l10n.addARoom),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: controller,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Room link or ID'),
+              decoration: InputDecoration(labelText: l10n.roomLinkOrId),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name (optional)'),
+              decoration: InputDecoration(labelText: l10n.nameOptional),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Add')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.add)),
         ],
       ),
     );
@@ -124,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (match == null) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('That doesn’t look like a BabyLink room link')));
+            .showSnackBar(SnackBar(content: Text(l10n.invalidRoomLink)));
       }
       return;
     }
@@ -162,7 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _copy(SavedRoom r) async {
     await Clipboard.setData(ClipboardData(text: r.roomLink));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).linkCopied)));
     }
   }
 
@@ -213,22 +217,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<String?> _promptPin() {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Enter room PIN'),
+        title: Text(l10n.enterRoomPin),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.number,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'PIN'),
+          decoration: InputDecoration(labelText: l10n.pin),
           onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Unlock')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.unlock)),
         ],
       ),
     );
@@ -238,20 +243,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final uri = Uri.parse(r.roomLink);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the link')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).couldNotOpenLink)));
       }
     }
   }
 
   Future<void> _delete(SavedRoom r) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Remove ${r.name}?'),
-        content: const Text('This removes it from this phone. The room keeps running for anyone who already has the link.'),
+        title: Text(l10n.removeRoomTitle(r.name)),
+        content: Text(l10n.removeRoomBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.remove)),
         ],
       ),
     );
@@ -263,6 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final rooms = _rooms;
     return Scaffold(
       appBar: AppBar(
@@ -272,14 +280,14 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: _addByLink,
             icon: const Icon(Icons.add_link_rounded),
-            tooltip: 'Add a room by link',
+            tooltip: l10n.addRoomByLink,
           ),
           IconButton(
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const SettingsScreen()))
                 .then((_) => _load()),
             icon: const Icon(Icons.dns_rounded),
-            tooltip: 'Server settings',
+            tooltip: l10n.serverSettings,
           ),
         ],
       ),
@@ -287,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? FloatingActionButton.extended(
               onPressed: _createRoom,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Create room'),
+              label: Text(l10n.createRoom),
             )
           : null,
       body: rooms == null
@@ -317,6 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _empty(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final t = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.all(Gap.lg),
@@ -326,14 +335,13 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const HeroBadge(emoji: '👶', size: 140),
           Gap.hXl,
-          Text('No rooms yet', textAlign: TextAlign.center, style: t.headlineMedium),
+          Text(l10n.noRoomsYet, textAlign: TextAlign.center, style: t.headlineMedium),
           Gap.hSm,
-          Text('Create a room, then add your BabyLink device to it.',
-              textAlign: TextAlign.center, style: t.bodyLarge),
+          Text(l10n.noRoomsBody, textAlign: TextAlign.center, style: t.bodyLarge),
           Gap.hXl,
-          PrimaryButton('Create a room', icon: Icons.add_rounded, onPressed: _createRoom),
+          PrimaryButton(l10n.createARoom, icon: Icons.add_rounded, onPressed: _createRoom),
           Gap.hSm,
-          TextButton(onPressed: _addByLink, child: const Text('I already have a room link')),
+          TextButton(onPressed: _addByLink, child: Text(l10n.haveRoomLink)),
         ],
       ),
     );
@@ -357,6 +365,7 @@ class _RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
     // A room we provisioned via BLE records its WiFi. A room we own (created it,
@@ -400,12 +409,12 @@ class _RoomCard extends StatelessWidget {
                     _ => onDelete(),
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'add', child: Text('Add a device')),
-                    const PopupMenuItem(value: 'baby', child: Text('Use this phone as a baby')),
+                    PopupMenuItem(value: 'add', child: Text(l10n.addADevice)),
+                    PopupMenuItem(value: 'baby', child: Text(l10n.useThisPhoneAsBaby)),
                     // Only the owner (holds the token) can manage the room.
                     if (room.ownerToken != null)
-                      const PopupMenuItem(value: 'manage', child: Text('Manage room')),
-                    const PopupMenuItem(value: 'remove', child: Text('Remove room')),
+                      PopupMenuItem(value: 'manage', child: Text(l10n.manageRoom)),
+                    PopupMenuItem(value: 'remove', child: Text(l10n.removeRoom)),
                   ],
                 ),
               ],
@@ -434,13 +443,13 @@ class _RoomCard extends StatelessWidget {
                 ? FilledButton.icon(
                     onPressed: onAddDevice,
                     icon: const Icon(Icons.add_rounded),
-                    label: const Text('Add a device'),
+                    label: Text(l10n.addADevice),
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   )
                 : FilledButton.icon(
                     onPressed: onListen,
                     icon: const Icon(Icons.hearing_rounded),
-                    label: const Text('Listen'),
+                    label: Text(l10n.listen),
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   ),
             Gap.hMd,
@@ -450,12 +459,12 @@ class _RoomCard extends StatelessWidget {
                   child: FilledButton.tonalIcon(
                     onPressed: onShare,
                     icon: const Icon(Icons.ios_share_rounded, size: 20),
-                    label: const Text('Share'),
+                    label: Text(l10n.share),
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                   ),
                 ),
                 Gap.wSm,
-                _iconAction(context, Icons.copy_rounded, 'Copy', onCopy),
+                _iconAction(context, Icons.copy_rounded, l10n.copy, onCopy),
                 Gap.wSm,
                 _iconAction(context, Icons.open_in_new_rounded, 'Open', onOpen),
               ],

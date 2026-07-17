@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
 import '../../widgets/step_scaffold.dart';
@@ -57,6 +58,7 @@ class _GateScreenState extends State<GateScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return StepScaffold(
       title: 'One quick tap on the device',
       subtitle: 'This keeps your monitor secure.',
@@ -71,7 +73,7 @@ class _GateScreenState extends State<GateScreen> {
             kind: TipKind.info,
           ),
           Gap.hLg,
-          Center(child: Text('Waiting for you…', style: t.labelMedium)),
+          Center(child: Text(l10n.waitingForYou, style: t.labelMedium)),
           if (_slow) ...[
             Gap.hLg,
             const TipBanner('Still waiting — try pressing the button again.', kind: TipKind.warning),

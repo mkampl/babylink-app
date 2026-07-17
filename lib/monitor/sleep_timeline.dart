@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme.dart';
 import 'baby_stream.dart';
 import 'sleep_tracker.dart';
@@ -14,6 +15,7 @@ class SleepTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final s = context.status;
     final palette = _Palette(
@@ -36,7 +38,7 @@ class SleepTimeline extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: Gap.sm),
-        title: Text('Sleep', style: t.labelLarge),
+        title: Text(l10n.sleep, style: t.labelLarge),
         subtitle: Text(_summaryLine(sum15, wakes12), style: t.labelMedium!.copyWith(color: muted)),
         children: [
           _label(context, 'Last 15 min'),

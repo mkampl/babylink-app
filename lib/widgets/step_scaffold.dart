@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme.dart';
 
 /// The backbone of every wizard screen: app bar with back, big title + subtitle,
@@ -28,13 +29,14 @@ class StepScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: showBack,
         leading: showBack
             ? IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
-                tooltip: 'Back',
+                tooltip: l10n.back,
                 onPressed: () => Navigator.of(context).maybePop(),
               )
             : null,

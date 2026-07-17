@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
 import 'room_admin.dart';
@@ -86,8 +87,9 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text('Manage ${widget.room.name}')),
+      appBar: AppBar(title: Text(l10n.manageRoomTitle(widget.room.name))),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -110,28 +112,32 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
     );
   }
 
-  Widget _errorState(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('Couldn’t load room settings.\n$_error', textAlign: TextAlign.center),
-            Gap.hMd,
-            FilledButton(onPressed: _refresh, child: const Text('Retry')),
-          ]),
-        ),
-      );
+  Widget _errorState(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(l10n.loadRoomSettingsFailed(_error ?? ''), textAlign: TextAlign.center),
+          Gap.hMd,
+          FilledButton(onPressed: _refresh, child: Text(l10n.retry)),
+        ]),
+      ),
+    );
+  }
 
   // ---- Devices ----
   Widget _devicesCard(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Devices', style: t.titleLarge),
+          Text(l10n.devices, style: t.titleLarge),
           Gap.hSm,
           if (_devices.isEmpty)
-            Text('No devices are connected to this room right now.', style: t.bodyMedium)
+            Text(l10n.noDevicesConnected, style: t.bodyMedium)
           else
             for (final d in _devices) _deviceTile(context, d),
         ]),
@@ -140,6 +146,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
   }
 
   Widget _deviceTile(BuildContext context, EspDevice d) {
+    final l10n = AppLocalizations.of(context);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.memory_rounded),
@@ -154,25 +161,26 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
           'disconnect' => _run(() => _api.disconnectDevice(d.id), 'Device disconnected'),
           _ => _resetDevice(d),
         },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'rename', child: Text('Rename')),
-          PopupMenuItem(value: 'disconnect', child: Text('Disconnect')),
-          PopupMenuItem(value: 'reset', child: Text('Factory reset')),
+        itemBuilder: (_) => [
+          PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+          PopupMenuItem(value: 'disconnect', child: Text(l10n.disconnect)),
+          PopupMenuItem(value: 'reset', child: Text(l10n.factoryReset)),
         ],
       ),
     );
   }
 
   Future<void> _renameDevice(EspDevice d) async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: d.name);
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename device'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Name')),
+        title: Text(l10n.renameDevice),
+        content: TextField(controller: controller, autofocus: true, decoration: InputDecoration(labelText: l10n.name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.save)),
         ],
       ),
     );
@@ -188,6 +196,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
   // ---- PIN ----
   Widget _pinCard(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
@@ -195,7 +204,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
           Row(children: [
             const Icon(Icons.lock_rounded),
             Gap.wSm,
-            Text('PIN', style: t.titleLarge),
+            Text(l10n.pin, style: t.titleLarge),
             const Spacer(),
             Text(_hasPin ? 'On' : 'Off',
                 style: t.labelLarge!.copyWith(color: _hasPin ? context.status.success : t.bodySmall!.color)),
@@ -217,7 +226,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
               Gap.wSm,
               TextButton(
                 onPressed: () => _run(() => _api.setPin(null), 'PIN removed'),
-                child: const Text('Remove'),
+                child: Text(l10n.remove),
               ),
             ],
           ]),
@@ -227,6 +236,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
   }
 
   Future<void> _setPin() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     final pin = await showDialog<String>(
       context: context,
@@ -239,11 +249,11 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
           obscureText: true,
           maxLength: 8,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(labelText: '6–8 digits'),
+          decoration: InputDecoration(labelText: l10n.pinDigitsHint),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Save')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.save)),
         ],
       ),
     );
@@ -258,6 +268,7 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
   // ---- ntfy ----
   Widget _ntfyCard(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
@@ -265,43 +276,42 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
           Row(children: [
             const Icon(Icons.notifications_active_rounded),
             Gap.wSm,
-            Text('Push alerts (ntfy)', style: t.titleLarge),
+            Text(l10n.pushAlerts, style: t.titleLarge),
           ]),
           Gap.hSm,
-          Text('Get a push on your phone even when the app is closed, via ntfy.sh. '
-              'Install the ntfy app and subscribe to your topic.', style: t.bodyMedium),
+          Text(l10n.pushAlertsBody, style: t.bodyMedium),
           Gap.hMd,
           TextField(
             controller: _topic,
-            decoration: const InputDecoration(labelText: 'Topic', hintText: 'e.g. babylink-7fa3c2'),
+            decoration: InputDecoration(labelText: l10n.topic, hintText: l10n.topicHint),
           ),
           Gap.hSm,
           TextField(
             controller: _server,
-            decoration: const InputDecoration(labelText: 'Server (optional)', hintText: 'https://ntfy.sh'),
+            decoration: InputDecoration(labelText: l10n.serverOptional, hintText: l10n.ntfyServerHint),
           ),
           Gap.hSm,
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Enabled'),
+            title: Text(l10n.enabled),
             value: _ntfy.enabled,
             onChanged: (v) => setState(() => _ntfy.enabled = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('When crying is detected'),
+            title: Text(l10n.whenCrying),
             value: _ntfy.onCrying,
             onChanged: (v) => setState(() => _ntfy.onCrying = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('When a device disconnects'),
+            title: Text(l10n.whenDisconnect),
             value: _ntfy.onDisconnect,
             onChanged: (v) => setState(() => _ntfy.onDisconnect = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('On any activity'),
+            title: Text(l10n.onAnyActivity),
             value: _ntfy.onActivity,
             onChanged: (v) => setState(() => _ntfy.onActivity = v),
           ),
@@ -311,12 +321,12 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
               onPressed: _savingNtfy ? null : _saveNtfy,
               child: _savingNtfy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Save'),
+                  : Text(l10n.save),
             ),
             Gap.wSm,
             TextButton(
               onPressed: () => _run(() => _api.testNtfy(), 'Test push sent'),
-              child: const Text('Send test'),
+              child: Text(l10n.sendTest),
             ),
           ]),
         ]),
@@ -344,14 +354,15 @@ class _RoomAdminScreenState extends State<RoomAdminScreen> {
 
   // ---- helpers ----
   Future<bool> _confirm(String title, String body) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: Text(body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.confirm)),
         ],
       ),
     );

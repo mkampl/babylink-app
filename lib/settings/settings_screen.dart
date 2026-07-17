@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../main.dart';
 import '../server/babylink_server.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
@@ -86,7 +88,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     await AppStore.instance.setServer(server.host, server.port);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Server saved')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).serverSaved)));
     Navigator.of(context).pop();
   }
 
@@ -98,24 +101,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _okVersion = null;
         _error = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Back to the demo server')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).backToDemoServer)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Server')),
+      appBar: AppBar(title: Text(l10n.server)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(Gap.lg),
           children: [
-            Text('BabyLink server', style: t.titleLarge),
+            Text(l10n.babylinkServer, style: t.titleLarge),
             Gap.hSm,
             Text(
-              'BabyLink is self-hosted. babylink.itvoodoo.at is just a public demo — '
-              'point the app at your own instance here.',
+              l10n.selfHostedNote,
               style: t.bodyMedium,
             ),
             Gap.hLg,
@@ -127,10 +131,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _okVersion = null;
                 _error = null;
               }),
-              decoration: const InputDecoration(
-                labelText: 'Server address',
-                hintText: 'babylink.itvoodoo.at  or  192.168.1.50:3000',
-                prefixIcon: Icon(Icons.dns_rounded),
+              decoration: InputDecoration(
+                labelText: l10n.serverAddress,
+                hintText: l10n.serverAddressHint,
+                prefixIcon: const Icon(Icons.dns_rounded),
               ),
             ),
             Gap.hMd,
@@ -146,7 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: _testing
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.wifi_tethering_rounded),
-                  label: const Text('Test'),
+                  label: Text(l10n.test),
                   style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                 ),
               ),
@@ -155,23 +159,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: FilledButton.icon(
                   onPressed: _testing ? null : _save,
                   icon: const Icon(Icons.check_rounded),
-                  label: const Text('Save'),
+                  label: Text(l10n.save),
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                 ),
               ),
             ]),
             Gap.hSm,
             if (_custom)
-              TextButton(onPressed: _reset, child: const Text('Reset to the demo server')),
+              TextButton(onPressed: _reset, child: Text(l10n.resetToDemoServer)),
             Gap.hLg,
             const TipBanner(
               'Existing rooms keep the server they were set up on. This only changes '
               'where NEW rooms and devices are created.',
               kind: TipKind.info,
             ),
+            Gap.hLg,
+            _LanguageSection(t: t, l10n: l10n),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Language picker for the app UI. Language names are shown as endonyms (a user
+/// recognises their own language by its own name), so they stay untranslated;
+/// only the section title and the "Auto" option are localized. "Auto" follows
+/// the system language. Selecting rebuilds the whole app via [localeController].
+class _LanguageSection extends StatelessWidget {
+  const _LanguageSection({required this.t, required this.l10n});
+
+  final TextTheme t;
+  final AppLocalizations l10n;
+
+  static const _languages = <({String? code, String label})>[
+    (code: 'en', label: 'English'),
+    (code: 'de', label: 'Deutsch'),
+    (code: 'es', label: 'Español'),
+    (code: 'tr', label: 'Türkçe'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: localeController,
+      builder: (context, _) {
+        final current = localeController.locale?.languageCode;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.language, style: t.titleLarge),
+            Gap.hMd,
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  RadioListTile<String?>(
+                    value: null,
+                    groupValue: current,
+                    title: Text(l10n.languageAuto),
+                    onChanged: (_) => localeController.setLocale(null),
+                  ),
+                  for (final lang in _languages)
+                    RadioListTile<String?>(
+                      value: lang.code,
+                      groupValue: current,
+                      title: Text(lang.label),
+                      onChanged: (_) => localeController.setLocale(lang.code),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

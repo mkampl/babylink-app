@@ -6,6 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../battery_status.dart';
+import '../l10n/app_localizations.dart';
 import '../store/app_store.dart';
 import '../theme.dart';
 import '../widgets/hero_badge.dart';
@@ -151,6 +152,7 @@ class _BabyScreenState extends State<BabyScreen> {
   Widget _body(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final s = context.status;
+    final l10n = AppLocalizations.of(context);
 
     if (_state == _State.denied) {
       return _centered(context, '🎤', 'Microphone needed',
@@ -219,7 +221,7 @@ class _BabyScreenState extends State<BabyScreen> {
               child: FilledButton.icon(
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.stop_rounded),
-                label: const Text('Stop'),
+                label: Text(l10n.stop),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(56),
                   backgroundColor: s.danger,

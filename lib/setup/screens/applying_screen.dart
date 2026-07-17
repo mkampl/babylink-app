@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../store/app_store.dart';
 import '../../theme.dart';
 import '../../widgets/hero_badge.dart';
@@ -110,6 +111,7 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
   @override
   Widget build(BuildContext context) {
     if (_stage == _Stage.failed) return _failed(context);
+    final l10n = AppLocalizations.of(context);
     final active = _stage;
     return PopScope(
       canPop: false,
@@ -129,7 +131,7 @@ class _ApplyingScreenState extends State<ApplyingScreen> {
             Gap.hLg,
             Center(
               child: Text(
-                'This can take up to half a minute. Hang tight. 💙',
+                l10n.applyingBody,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

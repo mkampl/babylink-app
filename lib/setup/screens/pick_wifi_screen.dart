@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../ble/babylink_ble.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme.dart';
 import '../../widgets/entity_tile.dart';
 import '../../widgets/hero_badge.dart';
@@ -70,19 +71,20 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
   }
 
   Future<void> _manualEntry() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     final ssid = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Enter network name'),
+        title: Text(l10n.enterNetworkName),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'WiFi network name (SSID)'),
+          decoration: InputDecoration(labelText: l10n.ssidLabel),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Next')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.next)),
         ],
       ),
     );
@@ -98,6 +100,7 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return StepScaffold(
       title: 'Choose your WiFi',
       subtitle: 'Pick the network your BabyLink should join.',
@@ -105,7 +108,7 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
         IconButton(
           onPressed: _loading ? null : _scan,
           icon: const Icon(Icons.refresh_rounded),
-          tooltip: 'Refresh',
+          tooltip: l10n.refresh,
         ),
       ],
       body: Column(
@@ -115,7 +118,7 @@ class _PickWifiScreenState extends State<PickWifiScreen> {
             Gap.hXl,
             const HeroBadge(emoji: '📶', pulse: true),
             Gap.hSm,
-            Center(child: Text('Looking for networks…', style: t.labelMedium)),
+            Center(child: Text(l10n.lookingForNetworks, style: t.labelMedium)),
           ] else if (_error != null) ...[
             Gap.hMd,
             TipBanner(_error!, kind: TipKind.danger),
