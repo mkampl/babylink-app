@@ -32,9 +32,29 @@ jobs:
 
       - run: flutter pub get
 
-      # Release build. Signing currently uses the auto-generated debug key
-      # (see android/app/build.gradle.kts) — installable via "unknown sources".
-      # Swap in a real keystore later for Play/production distribution.
+      # Reconstruct the release keystore + key.properties from repo secrets so
+      # CI builds carry the SAME signature as local release builds (installable
+      # updates in place). If the secret is absent, build.gradle.kts falls back
+      # to the debug key.
+      - name: Set up release signing
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "No RELEASE_KEYSTORE_B64 secret — falling back to the debug key."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > android/app/babylink-release.keystore
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=babylink-release.keystore
+          EOF
+          echo "Release keystore configured."
+
       - run: flutter build apk --release
 
       - name: Stage APK
